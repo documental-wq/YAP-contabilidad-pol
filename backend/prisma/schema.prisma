@@ -1,0 +1,271 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============================================================
+// CONFIGURACIÓN DE BASE DE DATOS
+// 
+// DESARROLLO LOCAL (SQLite - por defecto):
+//   DATABASE_URL="file:./dev.db"
+//
+// PRODUCCIÓN (PostgreSQL - recomendado):
+//   DATABASE_URL="postgresql://usuario:contraseña@host:5432/yap_db?schema=public"
+//
+// Cambie la variable DATABASE_URL en su archivo .env según el entorno.
+// Si no está configurada, usa SQLite automáticamente.
+// ============================================================
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Empresa {
+  id              String            @id @default(cuid())
+  nombre          String
+  nit             String?
+  representante   String?
+  telefono        String?
+  correo          String?
+  direccion       String?
+  color           String            @default("#1A6FFF")
+  cuenta_bancaria String?
+  banco           String?
+  estado          String            @default("activa")
+  fecha_registro  DateTime          @default(now())
+  observaciones   String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  informes        InformeGenerado[]
+  personas        Persona[]
+}
+
+model TipoPrestamo {
+  id             String              @id @default(cuid())
+  nombre         String
+  descripcion    String?
+  cuotas_maximas Int                 @default(24)
+  monto_minimo   Float               @default(100000)
+  monto_maximo   Float               @default(0)
+  estado         String              @default("activo")
+  fecha_creacion DateTime            @default(now())
+  prestamos      Prestamo[]
+  tasas          TipoPrestamo_Tasa[]
+}
+
+model TasaInteres {
+  id                  String              @id @default(cuid())
+  nombre              String
+  descripcion         String?
+  tipo_calculo        String              @default("porcentaje_periodico")
+  valor_porcentaje    Float
+  valor_fijo          Float?
+  aplica_sobre        String              @default("capital_inicial")
+  es_cargo_unico      Boolean             @default(false)
+  es_tasa_mora        Boolean             @default(false)
+  se_incluye_en_cuota Boolean             @default(true)
+  estado              String              @default("activa")
+  orden_en_tabla      Int                 @default(1)
+  fecha_creacion      DateTime            @default(now())
+  creado_por          String?
+  prestamos_tasa      PrestamTasa[]
+  tipos_prestamo      TipoPrestamo_Tasa[]
+}
+
+model TipoPrestamo_Tasa {
+  id      String       @id @default(cuid())
+  tipo_id String
+  tasa_id String
+  activa  Boolean      @default(true)
+  orden   Int          @default(1)
+  tasa    TasaInteres  @relation(fields: [tasa_id], references: [id])
+  tipo    TipoPrestamo @relation(fields: [tipo_id], references: [id])
+}
+
+model PrestamTasa {
+  id                    String       @id @default(cuid())
+  prestamo_id           String
+  tasa_id               String?
+  nombre_snapshot       String
+  tipo_calculo_snapshot String
+  valor_snapshot        Float
+  aplica_sobre_snapshot String
+  es_cargo_unico        Boolean      @default(false)
+  es_tasa_mora          Boolean      @default(false)
+  activa                Boolean      @default(true)
+  orden                 Int          @default(1)
+  tasa                  TasaInteres? @relation(fields: [tasa_id], references: [id])
+  prestamo              Prestamo     @relation(fields: [prestamo_id], references: [id])
+}
+
+model Persona {
+  id               String            @id @default(cuid())
+  primer_nombre    String
+  segundo_nombre   String?
+  primer_apellido  String
+  segundo_apellido String?
+  cedula           String            @unique
+  telefono         String?
+  telefono2        String?
+  celular          String?
+  correo           String?
+  empresa_id       String
+  cargo            String?
+  monto_requerido  Float?            @default(0)
+  fecha_registro   DateTime          @default(now())
+  estado           String            @default("activo")
+  foto_url         String?
+  observaciones    String?
+  creado_por       String?
+  password         String?
+  cambiar_password Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  cuotas           CuotaProgramada[]
+  empresa          Empresa           @relation(fields: [empresa_id], references: [id])
+  prestamos        Prestamo[]
+  pagos            RegistroPago[]
+}
+
+model Prestamo {
+  id                  String            @id @default(cuid())
+  codigo              String?           @unique
+  persona_id          String
+  numero_prestamo     Int               @default(1)
+  tipo_id             String
+  monto_otorgado      Float
+  numero_cuotas       Int
+  cuota_primera       Float?
+  cuota_estandar      Float?
+  cuota_ultima        Float?
+  total_capital       Float?
+  total_intereses     Float?
+  total_cargos        Float?
+  total_a_pagar       Float?
+  costo_financiero    Float?
+  tasa_efectiva_total Float?
+  calculo_detalle     String?
+  cuotas_pagadas      Int               @default(0)
+  fecha_otorgado      DateTime?
+  fecha_primer_pago   DateTime?
+  fecha_ultimo_pago   DateTime?
+  ultimo_pago         DateTime?
+  proximo_pago        DateTime?
+  estado              String            @default("pendiente_aprobacion")
+  motivo              String?
+  observaciones       String?
+  aprobado_por        String?
+  fecha_aprobacion    DateTime?
+  creado_por          String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  cuotas              CuotaProgramada[]
+  tasas_aplicadas     PrestamTasa[]
+  tipo                TipoPrestamo      @relation(fields: [tipo_id], references: [id])
+  persona             Persona           @relation(fields: [persona_id], references: [id])
+  pagos               RegistroPago[]
+}
+
+model CuotaProgramada {
+  id                String    @id @default(cuid())
+  prestamo_id       String
+  persona_id        String
+  numero_cuota      Int
+  fecha_programada  DateTime
+  fecha_real_pago   DateTime?
+  dias_de_atraso    Int       @default(0)
+  saldo_inicio      Float
+  capital_cuota     Float
+  intereses_cuota   Float
+  cargos_unicos     Float     @default(0)
+  interes_mora      Float     @default(0)
+  cuota_total       Float
+  cuota_total_final Float?
+  saldo_final       Float
+  desglose_tasas    String?
+  estado            String    @default("pendiente")
+  pago_id           String?
+  observaciones     String?
+  createdAt         DateTime  @default(now())
+  persona           Persona   @relation(fields: [persona_id], references: [id])
+  prestamo          Prestamo  @relation(fields: [prestamo_id], references: [id])
+}
+
+model RegistroPago {
+  id                   String   @id @default(cuid())
+  prestamo_id          String
+  persona_id           String
+  numero_cuota         Int
+  fecha_pago           DateTime
+  quincena             String
+  monto_pagado         Float
+  saldo_antes          Float
+  saldo_despues        Float
+  interes_mora_cobrado Float    @default(0)
+  dias_de_atraso       Int      @default(0)
+  metodo_pago          String   @default("Transferencia bancaria")
+  numero_comprobante   String?
+  observacion          String?
+  registrado_por       String?
+  createdAt            DateTime @default(now())
+  persona              Persona  @relation(fields: [persona_id], references: [id])
+  prestamo             Prestamo @relation(fields: [prestamo_id], references: [id])
+}
+
+model InformeGenerado {
+  id                String    @id @default(cuid())
+  empresa_id        String
+  quincena          String
+  fecha_desde       DateTime
+  fecha_hasta       DateTime
+  total_personas    Int
+  total_prestamos   Int
+  total_a_descontar Float
+  estado_filtro     String    @default("activos")
+  pdf_url           String?
+  enviado           Boolean   @default(false)
+  fecha_envio       DateTime?
+  enviado_a         String?
+  generado_por      String?
+  createdAt         DateTime  @default(now())
+  empresa           Empresa   @relation(fields: [empresa_id], references: [id])
+}
+
+model Usuario {
+  id            String         @id @default(cuid())
+  nombre        String
+  correo        String         @unique
+  password      String
+  rol           String         @default("administrador")
+  empresa       String?        @default("CORAZA CTA Principal")
+  estado        String         @default("activo")
+  foto_url      String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+}
+
+model Configuracion {
+  clave String @id
+  valor String
+}
+
+model RefreshToken {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  usuario_id String
+  expires_at DateTime
+  createdAt  DateTime @default(now())
+  usuario    Usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  usuario_id  String?  // ID del usuario que realizó la acción
+  usuario_nom String?  // Nombre del usuario que realizó la acción
+  accion      String   // e.g., "CREAR_PRESTAMO", "APROBAR_PRESTAMO", "CANCELAR_PRESTAMO", "REGISTRAR_PAGO", "EDITAR_PERSONA", "RESTABLECER_PIN", "RECHAZAR_SOLICITUD"
+  entidad     String   // e.g., "Prestamo", "RegistroPago", "Persona", "Usuario"
+  entidad_id  String?  // ID del registro afectado
+  detalles    String?  // JSON stringificado con detalles relevantes
+  createdAt   DateTime @default(now())
+}
+

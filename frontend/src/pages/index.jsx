@@ -1,0 +1,23 @@
+import React from 'react'
+
+export { Login } from './Login'
+export { Dashboard } from './Dashboard'
+export { Personas } from './Personas'
+export { TasasInteres } from './TasasInteres'
+export { Prestamos } from './Prestamos'
+export { Historial } from './Historial'
+export { Mora } from './Mora'
+export { Informes } from './Informes'
+export { Usuarios } from './Usuarios'
+export { Empresas } from './Empresas'
+export { TiposPrestamo } from './TiposPrestamo'
+export { Perfil } from './Perfil'
+export { SolicitudPublica } from './SolicitudPublica'
+export { PortalLogin } from './PortalLogin'
+export { PortalDashboard } from './PortalDashboard'
+export { PortalPrestamos } from './PortalPrestamos'
+export { PortalPagos } from './PortalPagos'
+export { PortalPerfil } from './PortalPerfil'
+export { Auditoria } from './Auditoria'
+
+

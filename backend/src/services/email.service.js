@@ -1,0 +1,610 @@
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { Resend } from 'resend'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// ── Configuración Resend ────────────────────────────────────────
+const resendApiKey = process.env.RESEND_API_KEY
+const resend = resendApiKey ? new Resend(resendApiKey) : null
+
+// Remitente configurable por variable de entorno
+const EMAIL_FROM = process.env.EMAIL_FROM || 'YAP Créditos <no-reply@yap.com.co>'
+const EMAIL_REPLY_TO = process.env.EMAIL_REPLY_TO || null
+
+// Diagnostico al inicio del servidor
+if (!resendApiKey) {
+    console.warn('\n============================================================')
+    console.warn('📧 [EmailService] RESEND_API_KEY no configurada.')
+    console.warn('   Los correos se guardarán como archivos HTML en temp_emails/')
+    console.warn('   Para activar el envío real:')
+    console.warn('   1. Crea cuenta gratuita en https://resend.com')
+    console.warn('   2. Verifica tu dominio (ej: tuempresa.com.co)')
+    console.warn('   3. Crea una API Key y agrégala en backend/.env')
+    console.warn('   4. Establece EMAIL_FROM=YAP <no-reply@tudominio.com>')
+    console.warn('============================================================\n')
+} else {
+    console.log(`[EmailService] ✅ Resend API configurada. Remitente: ${EMAIL_FROM}`)
+}
+
+/**
+ * Función de reintento con backoff exponencial para envíos de correo.
+ * @param {Function} fn - Función async a reintentar
+ * @param {number} intentos - Número máximo de intentos
+ * @param {number} delayMs - Tiempo base de espera entre intentos (ms)
+ */
+async function conReintentos(fn, intentos = 3, delayMs = 1000) {
+    for (let intento = 1; intento <= intentos; intento++) {
+        try {
+            return await fn()
+        } catch (err) {
+            if (intento === intentos) throw err
+            const espera = delayMs * Math.pow(2, intento - 1) // 1s, 2s, 4s
+            console.warn(`[EmailService] Intento ${intento}/${intentos} fallido. Reintentando en ${espera}ms...`)
+            await new Promise(r => setTimeout(r, espera))
+        }
+    }
+}
+
+/**
+ * Genera una plantilla de correo electrónico HTML Premium con diseño responsivo, cian/oscuro.
+ * @param {string} nombreCompleto 
+ * @param {number} numeroTurno 
+ * @returns {string} HTML del correo
+ */
+function generarTemplateHTML(nombreCompleto, numeroTurno) {
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenido a YAP - Crédito en Estudio</title>
+    <style>
+        body {
+            background-color: #060c1b;
+            color: #d1d5db;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 40px 10px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #0d1527;
+            border: 1px solid #1e2d4a;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+        }
+        .header {
+            background: linear-gradient(135deg, #1a6fff 0%, #00d4ff 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .logo-text {
+            color: #ffffff;
+            margin: 0;
+            font-size: 36px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        .logo-sub {
+            color: rgba(255, 255, 255, 0.85);
+            margin: 5px 0 0 0;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .welcome {
+            font-size: 22px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        .text {
+            line-height: 1.6;
+            margin-bottom: 30px;
+            font-size: 15px;
+            color: #a0aec0;
+        }
+        .highlight {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+        .badge-container {
+            text-align: center;
+            background: rgba(0, 212, 255, 0.03);
+            border: 1px dashed rgba(0, 212, 255, 0.2);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 30px;
+        }
+        .badge-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #00d4ff;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        .badge-value {
+            font-size: 58px;
+            font-weight: 950;
+            color: #ffffff;
+            line-height: 1;
+            margin: 0;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+        .badge-subtitle {
+            font-size: 11px;
+            color: #718096;
+            margin-top: 10px;
+            font-weight: 500;
+        }
+        .steps {
+            background-color: rgba(255, 255, 255, 0.02);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        .step-item:last-child {
+            margin-bottom: 0;
+        }
+        .step-num {
+            background-color: #1a6fff;
+            color: #ffffff;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .step-text {
+            font-size: 14px;
+            color: #cbd5e0;
+            line-height: 1.4;
+        }
+        .footer {
+            background-color: #090e1a;
+            padding: 30px 20px;
+            text-align: center;
+            border-top: 1px solid #1e2d4a;
+            font-size: 11px;
+            color: #718096;
+        }
+        .footer p {
+            margin: 0 0 8px 0;
+        }
+        .footer p:last-child {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="logo-text">YAP</h1>
+            <p class="logo-sub">Créditos al instante</p>
+        </div>
+        <div class="content">
+            <h2 class="welcome">¡Hola, ${nombreCompleto}!</h2>
+            <p class="text">
+                Queremos darte la bienvenida oficial a **YAP**. Tu información ha sido registrada con éxito en nuestra plataforma para el estudio de tu crédito por libranza.
+            </p>
+            
+            <div class="badge-container">
+                <p class="badge-title">Tu Número en la Fila</p>
+                <p class="badge-value">#${numeroTurno}</p>
+                <p class="badge-subtitle">Asignado de forma exacta en tu orden de ingreso al sistema</p>
+            </div>
+
+            <h3 style="color: #ffffff; font-size: 16px; font-weight: 700; margin-bottom: 15px;">¿Qué sigue ahora?</h3>
+            <div class="steps">
+                <div class="step-item">
+                    <div class="step-num">1</div>
+                    <div class="step-text"><strong>Validación Interna:</strong> Nuestro equipo de analistas de libranza revisará tu solicitud de crédito.</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">2</div>
+                    <div class="step-text"><strong>Contacto Telefónico:</strong> Nos pondremos en contacto al número celular registrado para coordinar los detalles.</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">3</div>
+                    <div class="step-text"><strong>Desembolso:</strong> Una vez aprobado, el dinero se transferirá directamente a tu cuenta configurada.</div>
+                </div>
+            </div>
+
+            <p class="text" style="margin-bottom: 0; text-align: center; font-size: 14px;">
+                Si tienes alguna pregunta, no dudes en responder a este correo. ¡Gracias por confiar en nosotros!
+            </p>
+        </div>
+        <div class="footer">
+            <p><strong>YAP S.A.S. - Gestión Administrativa Coraza</strong></p>
+            <p>Este es un correo automático. Por favor no lo respondas directamente si no lo requieres.</p>
+        </div>
+    </div>
+</body>
+</html>`
+}
+
+/**
+ * Envía el correo de confirmación de registro a un cliente.
+ * Si no hay llaves SMTP configuradas, guarda la visualización local en temp_emails/
+ * @param {object} params
+ * @param {string} params.email Correo de destino
+ * @param {string} params.nombreCompleto Nombre del cliente
+ * @param {number} params.numeroTurno Número de fila
+ */
+export async function enviarConfirmacionRegistro({ email, nombreCompleto, numeroTurno }) {
+    const htmlContent = generarTemplateHTML(nombreCompleto, numeroTurno)
+
+    console.log(`[EmailService] Procesando correo para: ${email} (Turno #${numeroTurno})`)
+
+    // Caso 1: Intentar con Resend API (con 3 reintentos automáticos)
+    if (resend) {
+        try {
+            console.log('[EmailService] Enviando vía Resend API...')
+            await conReintentos(() => resend.emails.send({
+                from: EMAIL_FROM,
+                to: email,
+                ...(EMAIL_REPLY_TO ? { replyTo: EMAIL_REPLY_TO } : {}),
+                subject: `¡Registro Exitoso en YAP! Tu número en la fila es #${numeroTurno}`,
+                html: htmlContent,
+            }))
+            console.log('[EmailService] ✅ Correo enviado exitosamente vía Resend!')
+            return { sent: true, method: 'resend' }
+        } catch (error) {
+            console.error('[EmailService] ❌ Falló envío por Resend (3 intentos agotados):', error.message)
+            // Procedemos al fallback local
+        }
+    }
+
+    // Caso 2: Fallback local para pruebas y simulación visual
+    try {
+        const tempDir = path.join(__dirname, '../../temp_emails')
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true })
+        }
+
+        // Crear nombre de archivo amigable
+        const safeName = nombreCompleto.toLowerCase().replace(/[^a-z0-9]/g, '_')
+        const filename = `registro_yap_turno_${numeroTurno}_${safeName}.html`
+        const filePath = path.join(tempDir, filename)
+
+        fs.writeFileSync(filePath, htmlContent, 'utf-8')
+
+        console.log('\n=============================================================')
+        console.log('📬 [EMAIL SIMULATOR - FALLBACK LOCAL]')
+        console.log(`Cliente: ${nombreCompleto}`)
+        console.log(`Destino: ${email}`)
+        console.log(`Asunto: ¡Registro Exitoso en YAP! Turno #${numeroTurno}`)
+        console.log(`Archivo HTML generado para vista previa visual local:`)
+        console.log(`👉 file:///${filePath.replace(/\\/g, '/')}`)
+        console.log('=============================================================\n')
+
+        return { sent: true, method: 'fallback_file', path: filePath }
+    } catch (fsError) {
+        console.error('[EmailService] Error crítico al escribir el archivo de simulación local:', fsError.message)
+        return { sent: false, error: fsError.message }
+    }
+}
+
+/**
+ * Envía una notificación por correo al administrador sobre una nueva solicitud de crédito.
+ */
+export async function enviarNotificacionAdminNuevaSolicitud({
+    emailAdmin,
+    nombreCompleto,
+    cedula,
+    emailCliente,
+    celular,
+    empresaNombre,
+    cargo,
+    montoRequerido,
+    observaciones
+}) {
+    const formattedMonto = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(montoRequerido || 0)
+    
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Solicitud de Crédito Recibida</title>
+    <style>
+        body {
+            background-color: #060c1b;
+            color: #d1d5db;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 40px 10px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #0d1527;
+            border: 1px solid #1e2d4a;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+        }
+        .header {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .logo-text {
+            color: #ffffff;
+            margin: 0;
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: 3px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-top: 0;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .highlight-box {
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .highlight-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #10B981;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+        .highlight-value {
+            font-size: 36px;
+            font-weight: 900;
+            color: #ffffff;
+            margin: 0;
+            text-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+        }
+        .table-info {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .table-info td {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 14px;
+        }
+        .table-info tr:last-child td {
+            border-bottom: none;
+        }
+        .label {
+            color: #718096;
+            font-weight: 700;
+            width: 35%;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+        .value {
+            color: #ffffff;
+            font-weight: 500;
+        }
+        .obs-box {
+            background-color: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 13px;
+            line-height: 1.5;
+            color: #cbd5e0;
+            margin-bottom: 30px;
+        }
+        .footer {
+            background-color: #090e1a;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #1e2d4a;
+            font-size: 11px;
+            color: #718096;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="logo-text">YAP ADMIN</h1>
+        </div>
+        <div class="content">
+            <h2 class="title">🔔 Nueva Solicitud Recibida</h2>
+            <p style="color: #a0aec0; text-align: center; font-size: 14px; margin-bottom: 25px;">
+                Un cliente ha diligenciado el formulario público de solicitud de crédito.
+            </p>
+            
+            <div class="highlight-box">
+                <p class="highlight-title">Monto Solicitado</p>
+                <p class="highlight-value">${formattedMonto}</p>
+            </div>
+
+            <table class="table-info">
+                <tr>
+                    <td class="label">Cliente</td>
+                    <td class="value">${nombreCompleto}</td>
+                </tr>
+                <tr>
+                    <td class="label">Cédula</td>
+                    <td class="value">${cedula}</td>
+                </tr>
+                <tr>
+                    <td class="label">Celular</td>
+                    <td class="value">${celular || '-'}</td>
+                </tr>
+                <tr>
+                    <td class="label">Correo</td>
+                    <td class="value">${emailCliente || '-'}</td>
+                </tr>
+                <tr>
+                    <td class="label">Empresa</td>
+                    <td class="value">${empresaNombre || '-'}</td>
+                </tr>
+                <tr>
+                    <td class="label">Cargo</td>
+                    <td class="value">${cargo || '-'}</td>
+                </tr>
+            </table>
+
+            {OBSERVACIONES_PLACEHOLDER}
+        </div>
+        <div class="footer">
+            <p><strong>YAP S.A.S. - Sistema de Notificaciones Administrativas</strong></p>
+        </div>
+    </div>
+</body>
+</html>`.replace(
+        '{OBSERVACIONES_PLACEHOLDER}',
+        observaciones
+            ? `<h3 style="color: #ffffff; font-size: 14px; font-weight: 700; margin-bottom: 10px;">Observaciones del Cliente:</h3>
+               <div class="obs-box">${observaciones}</div>`
+            : ''
+    )
+
+    console.log(`[EmailService] Notificando al administrador (${emailAdmin}) sobre nueva solicitud de: ${nombreCompleto}`)
+
+    if (resend) {
+        try {
+            await conReintentos(() => resend.emails.send({
+                from: EMAIL_FROM,
+                to: emailAdmin,
+                subject: `🔔 Nueva Solicitud de Crédito - ${nombreCompleto} (${formattedMonto})`,
+                html: htmlContent,
+            }))
+            console.log('[EmailService] ✅ Alerta de nueva solicitud enviada al administrador vía Resend!')
+            return { sent: true, method: 'resend' }
+        } catch (error) {
+            console.error('[EmailService] ❌ Falló envío de alerta a administrador por Resend:', error.message)
+        }
+    }
+
+    // Fallback local
+    try {
+        const tempDir = path.join(__dirname, '../../temp_emails')
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true })
+        }
+        const safeName = nombreCompleto.toLowerCase().replace(/[^a-z0-9]/g, '_')
+        const filename = `alerta_admin_nueva_solicitud_${safeName}.html`
+        const filePath = path.join(tempDir, filename)
+
+        fs.writeFileSync(filePath, htmlContent, 'utf-8')
+        console.log('\n=============================================================')
+        console.log('📬 [EMAIL SIMULATOR - ALERTA ADMINISTRADOR]')
+        console.log(`Admin destino: ${emailAdmin}`)
+        console.log(`Cliente: ${nombreCompleto} (CC: ${cedula})`)
+        console.log(`Monto: ${formattedMonto}`)
+        console.log(`Archivo de alerta HTML generado para vista previa:`)
+        console.log(`👉 file:///${filePath.replace(/\\/g, '/')}`)
+        console.log('=============================================================\n')
+        return { sent: true, method: 'fallback_file', path: filePath }
+    } catch (fsError) {
+        console.error('[EmailService] Error crítico al escribir alerta local:', fsError.message)
+        return { sent: false, error: fsError.message }
+    }
+}
+
+/**
+ * Envía un correo con el extracto PDF adjunto al cliente (usado desde informes.routes.js).
+ * Si no hay Resend configurado, guarda la visualización local.
+ * @param {string} email Correo destino
+ * @param {string} nombre Nombre del cliente
+ * @param {Buffer} pdfBuffer Buffer del PDF a adjuntar
+ * @param {string} fileName Nombre del archivo PDF
+ */
+export async function enviarCorreoReporte(email, nombre, pdfBuffer, fileName) {
+    console.log(`[EmailService] Enviando extracto a: ${email}`)
+
+    if (resend) {
+        try {
+            await conReintentos(() => resend.emails.send({
+                from: EMAIL_FROM,
+                to: email,
+                ...(EMAIL_REPLY_TO ? { replyTo: EMAIL_REPLY_TO } : {}),
+                subject: `Tu Estado de Cuenta YAP - ${new Date().toLocaleDateString('es-CO')}`,
+                html: `
+                    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
+                        <h2 style="color:#1a6fff">YAP Créditos por Libranza</h2>
+                        <p>Hola <strong>${nombre}</strong>,</p>
+                        <p>Adjunto encontrarás tu estado de cuenta actualizado.</p>
+                        <p>Si tienes preguntas, responde a este correo.</p>
+                        <p style="margin-top:24px"><strong>Equipo YAP</strong></p>
+                    </div>`,
+                attachments: [
+                    {
+                        filename: fileName,
+                        content: Buffer.isBuffer(pdfBuffer) ? pdfBuffer.toString('base64') : Buffer.from(pdfBuffer).toString('base64'),
+                        content_type: 'text/html',
+                    }
+                ]
+            }))
+            console.log('[EmailService] ✅ Extracto enviado exitosamente vía Resend!')
+            return { sent: true, method: 'resend' }
+        } catch (error) {
+            console.error('[EmailService] ❌ Error enviando extracto por Resend:', error.message)
+        }
+    }
+
+    // Fallback: guardar aviso en consola y archivo local
+    console.log(`\n[EmailService] 📋 FALLBACK: Extracto listo para envío manual`)
+    console.log(`  Destinatario: ${email} (${nombre})`)
+    console.log(`  Archivo: ${fileName} (${pdfBuffer?.length || 0} bytes)`)
+    console.log(`  Configure RESEND_API_KEY en .env para envío automático\n`)
+    return { sent: false, method: 'fallback_log' }
+}
+
+/**
+ * Verifica si el servicio de correo está correctamente configurado.
+ * Útil para la ruta de diagnóstico /api/auth/test-email
+ * @returns {object} Estado del servicio
+ */
+export function diagnosticarEmailService() {
+    return {
+        configurado: !!resend,
+        remitente: EMAIL_FROM,
+        modo: resend ? 'resend_api' : 'fallback_local',
+        instrucciones: resend ? null : [
+            'Agregar RESEND_API_KEY en backend/.env',
+            'Verificar dominio en https://resend.com',
+            'Configurar EMAIL_FROM=YAP <no-reply@tudominio.com>'
+        ]
+    }
+}

@@ -1,0 +1,170 @@
+import React, { useEffect, useState, useRef } from 'react'
+import { Building2, Plus, X, Pencil, Trash2, Printer } from 'lucide-react'
+import api from '../utils/api'
+import { useReactToPrint } from 'react-to-print'
+import { EmpresaEmpleadosPDF } from '../components/empresas/EmpresaEmpleadosPDF'
+import toast from 'react-hot-toast'
+import { Loader } from '../components/ui/Loader'
+
+export function Empresas() {
+    const [empresas, setEmpresas] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [modalOpen, setModalOpen] = useState(false)
+    const [empresaEditar, setEmpresaEditar] = useState(null)
+    const [nombre, setNombre] = useState('')
+    const [guardando, setGuardando] = useState(false)
+    const [empresaImprimir, setEmpresaImprimir] = useState(null)
+    const [empleadosImprimir, setEmpleadosImprimir] = useState([])
+    const printRef = useRef()
+
+    const handlePrint = useReactToPrint({
+        contentRef: printRef,
+        documentTitle: 'Reporte_Empresa',
+    })
+
+    const imprimirEmpleados = async (emp) => {
+        try {
+            const res = await api.get('/personas', { params: { empresa_id: emp.id } })
+            setEmpresaImprimir(emp)
+            setEmpleadosImprimir(res.data.personas || [])
+            setTimeout(() => handlePrint(), 500)
+        } catch (e) { console.error(e) }
+    }
+
+    const cargar = async () => {
+        setLoading(true)
+        try {
+            const res = await api.get('/empresas')
+            setEmpresas(res.data.empresas || [])
+        } catch (e) { console.error(e) }
+        finally { setLoading(false) }
+    }
+
+    useEffect(() => { cargar() }, [])
+
+    const abrirModal = (empresa = null) => {
+        setEmpresaEditar(empresa)
+        setNombre(empresa?.nombre || '')
+        setModalOpen(true)
+    }
+
+    const guardar = async (e) => {
+        e.preventDefault()
+        if (!nombre.trim()) return
+        setGuardando(true)
+        try {
+            if (empresaEditar) {
+                await api.put(`/empresas/${empresaEditar.id}`, { nombre })
+            } else {
+                await api.post('/empresas', { nombre })
+            }
+            setModalOpen(false)
+            cargar()
+            toast.success('Empresa guardada con éxito')
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Error al guardar empresa')
+        } finally {
+            setGuardando(false)
+        }
+    }
+
+    const eliminar = async (id) => {
+        if (!window.confirm('¿Eliminar empresa? Solo si no tiene personas asociadas.')) return
+        try {
+            await api.delete(`/empresas/${id}`)
+            cargar()
+            toast.success('Empresa eliminada')
+        } catch (e) {
+            toast.error(e.response?.data?.error || 'Error al eliminar empresa')
+        }
+    }
+
+    return (
+        <div className="space-y-6">
+            {guardando && <Loader overlay message="Procesando Empresa..." />}
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold text-white tracking-wide flex items-center gap-3">
+                        <Building2 className="text-[var(--cyan)]" />
+                        Gestión de Empresas
+                    </h1>
+                    <p className="text-[var(--texto-3)] text-sm mt-1">Organizaciones y empleadores asociados a clientes.</p>
+                </div>
+                <button
+                    onClick={() => abrirModal()}
+                    className="bg-gradient-to-r from-[#4FD1C5] to-[#38B2AC] hover:from-[#38B2AC] hover:to-[#2C7A7B] text-white font-bold py-2.5 px-5 rounded-xl transition-all shadow-[0_0_15px_rgba(79,209,197,0.3)] flex items-center gap-2"
+                >
+                    <Plus size={18} /> Nueva Empresa
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {loading ? (
+                    <p className="text-[var(--texto-3)] col-span-3 text-center py-10">Cargando empresas...</p>
+                ) : empresas.length === 0 ? (
+                    <div className="col-span-3 flex flex-col items-center justify-center py-20 text-center">
+                        <Building2 size={48} className="text-white/20 mb-3" />
+                        <p className="text-[var(--texto-3)] text-sm">No hay empresas registradas.</p>
+                        <button onClick={() => abrirModal()} className="mt-4 text-[#4FD1C5] text-sm hover:underline font-bold">+ Agregar primera empresa</button>
+                    </div>
+                ) : (
+                    empresas.map(emp => (
+                        <div key={emp.id} className="bg-[var(--fondo-card)] border border-[var(--borde)] rounded-2xl p-5 hover:border-[#4FD1C5]/40 transition-all group">
+                            <div className="flex justify-between items-start mb-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#4FD1C5] to-[#38B2AC] flex items-center justify-center text-white font-bold text-lg">
+                                    {emp.nombre?.[0]?.toUpperCase()}
+                                </div>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => imprimirEmpleados(emp)} className="p-1.5 text-[var(--texto-3)] hover:text-[#4FD1C5] hover:bg-[rgba(79,209,197,0.1)] rounded-lg transition-colors" title="Imprimir Empleados">
+                                        <Printer size={15} />
+                                    </button>
+                                    <button onClick={() => abrirModal(emp)} className="p-1.5 text-[var(--texto-3)] hover:text-[#4FD1C5] hover:bg-[rgba(79,209,197,0.1)] rounded-lg transition-colors">
+                                        <Pencil size={15} />
+                                    </button>
+                                    <button onClick={() => eliminar(emp.id)} className="p-1.5 text-[var(--texto-3)] hover:text-[#F43F5E] hover:bg-[rgba(244,63,94,0.1)] rounded-lg transition-colors">
+                                        <Trash2 size={15} />
+                                    </button>
+                                </div>
+                            </div>
+                            <h3 className="text-white font-bold uppercase">{emp.nombre}</h3>
+                            <p className="text-xs text-[var(--texto-3)] mt-1 font-mono">{emp.id.slice(0, 12)}...</p>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            {modalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,16,32,0.8)] backdrop-blur-sm p-4">
+                    <div className="bg-[var(--fondo-base)] border border-[var(--borde)] w-full max-w-sm rounded-3xl p-8 relative shadow-[0_0_50px_rgba(0,0,0,0.6)]">
+                        <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-[var(--texto-3)] hover:text-white bg-[rgba(255,255,255,0.05)] p-2 rounded-full">
+                            <X size={18} />
+                        </button>
+                        <h2 className="text-xl font-bold text-white mb-6">{empresaEditar ? 'Editar Empresa' : 'Nueva Empresa'}</h2>
+                        <form onSubmit={guardar}>
+                            <label className="block text-[var(--texto-2)] text-xs font-bold uppercase tracking-wider mb-2">Nombre de la Empresa *</label>
+                            <input
+                                autoFocus
+                                required
+                                value={nombre}
+                                onChange={e => setNombre(e.target.value)}
+                                placeholder="Ej: Cooperativa Coraza CTA"
+                                className="w-full bg-[var(--fondo-input)] border border-[var(--borde)] rounded-xl px-4 py-3 text-white focus:border-[#4FD1C5] focus:outline-none mb-6"
+                            />
+                            <div className="flex gap-3">
+                                <button type="button" onClick={() => setModalOpen(false)} className="flex-1 py-3 rounded-xl border border-white/10 hover:bg-white/5 text-white font-bold transition-all">Cancelar</button>
+                                <button type="submit" disabled={guardando} className="flex-1 bg-gradient-to-r from-[#4FD1C5] to-[#38B2AC] text-white font-bold py-3 rounded-xl disabled:opacity-50">
+                                    {guardando ? 'Guardando...' : 'GUARDAR'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Componente Invisible para PDF - Offscreen para permitir renderizado */}
+            <div style={{ position: 'absolute', top: '-10000px', left: '-10000px', opacity: 0, pointerEvents: 'none' }}>
+                <EmpresaEmpleadosPDF ref={printRef} empresa={empresaImprimir} empleados={empleadosImprimir} />
+            </div>
+        </div>
+    )
+}
