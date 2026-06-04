@@ -29,7 +29,18 @@ router.get('/', verificarToken, async (req, res) => {
         const [personas, total] = await Promise.all([
             prisma.persona.findMany({
                 where,
-                include: { empresa: true, prestamos: { where: { estado: { in: ['activo', 'en_mora'] } }, select: { id: true, estado: true } } },
+                include: {
+                    empresa: true,
+                    prestamos: {
+                        where: { estado: { in: ['activo', 'en_mora'] } },
+                        include: {
+                            cuotas: {
+                                where: { estado: { in: ['pendiente', 'vencida'] } },
+                                orderBy: { numero_cuota: 'asc' }
+                            }
+                        }
+                    }
+                },
                 orderBy: [{ primer_apellido: 'asc' }, { primer_nombre: 'asc' }],
                 skip,
                 take: parseInt(limit)
