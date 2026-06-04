@@ -52,8 +52,29 @@ const apiLimiter = rateLimit({
 app.use('/api', apiLimiter)
 // ──────────────────────────────────────────────────────────────────────────
 
+const allowedOrigins = [
+    'http://localhost:5173',
+    'https://yap-contabilidad-pol-4.onrender.com',
+    'https://yap-contabilidad-pol-2.onrender.com',
+    'https://yap-contabilidad-pol-1.onrender.com',
+    'https://yap-frontend.onrender.com'
+]
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+        // Permitir peticiones sin origen (como curl o Postman)
+        if (!origin) return callback(null, true);
+        
+        const isAllowed = allowedOrigins.includes(origin) || 
+                          origin.endsWith('.onrender.com') ||
+                          origin.startsWith('http://localhost:');
+                          
+        if (isAllowed || (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL)) {
+            callback(null, true);
+        } else {
+            callback(null, false);
+        }
+    },
     credentials: true
 }))
 app.use(express.json())
