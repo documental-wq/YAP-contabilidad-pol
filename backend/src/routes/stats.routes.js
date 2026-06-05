@@ -67,11 +67,15 @@ router.get('/', verificarToken, async (req, res) => {
             const updateCuotas = cuotasVencidasNow.map(c =>
                 prisma.cuotaProgramada.update({ where: { id: c.id }, data: { estado: 'vencida' } })
             )
-            // Actualizamos préstamos a en_mora (solo si están activos)
-            const prestamoIdsAfectados = [...new Set(cuotasVencidasNow.map(c => c.prestamo_id))]
+            // Actualizamos préstamos a en_mora (solo si su estado actual en la base de datos es 'activo')
+            const prestamoIdsAfectados = [...new Set(
+                cuotasVencidasNow
+                    .filter(c => c.prestamo && c.prestamo.estado === 'activo')
+                    .map(c => c.prestamo_id)
+            )]
             const updatePrestamos = prestamoIdsAfectados.map(pid =>
                 prisma.prestamo.update({
-                    where: { id: pid, estado: 'activo' },
+                    where: { id: pid },
                     data: { estado: 'en_mora' }
                 })
             )
