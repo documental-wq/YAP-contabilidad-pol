@@ -653,7 +653,7 @@ function ModalSimulador({ onClose, onPrintSuccess, initialPersonaId }) {
                                                                 className="w-full bg-[var(--cyan)]/5 border border-[var(--cyan)]/30 text-[var(--cyan)] font-black text-lg px-4 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)] focus:shadow-[0_0_15px_rgba(79,209,197,0.2)]"
                                                             />
                                                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-[var(--cyan)] opacity-50 uppercase tracking-tighter">
-                                                                {tasa.tipo_calculo === 'porcentaje_periodico' ? '%' : 'USD'}
+                                                                {tasa.tipo_calculo === 'porcentaje_periodico' ? '%' : '$'}
                                                             </span>
                                                         </div>
                                                     </div>

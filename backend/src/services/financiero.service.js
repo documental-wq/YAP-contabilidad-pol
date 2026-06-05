@@ -63,7 +63,15 @@ export function calcularPrestamo({ montoOtorgado, numeroCuotas, tasasAsignadas, 
     const nCuotas = parseInt(numeroCuotas)
 
     // Buscamos la tasa periódica de 'interés' para el cálculo francés
-    const tasaInteresPura = tasasAsignadas.find(t => t.activa && !t.es_cargo_unico && (t.nombre.toLowerCase().includes('interés') || t.nombre.toLowerCase().includes('tasa')))
+    const tasaInteresPura = tasasPeriodicas.find(t => {
+        const name = (t.nombre_snapshot ?? t.nombre ?? '').toLowerCase();
+        return name.includes('interés') || 
+               name.includes('interes') || 
+               name.includes('tasa') || 
+               name.includes('interest') || 
+               name.includes('rate');
+    }) || tasasPeriodicas.find(t => (t.tipo_calculo_snapshot ?? t.tipo_calculo) !== 'monto_fijo');
+
     const tQuincenalInteres = tasaInteresPura ? obtenerTasaQuincenal(tasaInteresPura) : 0
 
     const usaCuotaFija = tQuincenalInteres > 0
@@ -103,15 +111,22 @@ export function calcularPrestamo({ montoOtorgado, numeroCuotas, tasasAsignadas, 
 
         for (const tasa of tasasPeriodicas) {
             const aplicacionBase = tasa.aplica_sobre_snapshot ?? tasa.aplica_sobre
-            const base = aplicacionBase === 'saldo_pendiente' ? saldoInicial : mOtorgado
 
+            let base = mOtorgado
             let valor = new Decimal(0)
             const tipoCalc = tasa.tipo_calculo_snapshot ?? tasa.tipo_calculo
             if (tipoCalc === 'monto_fijo') {
                 valor = new Decimal(tasa.valor_snapshot ?? tasa.valor_fijo ?? 0)
+                base = new Decimal(0)
             } else {
                 const tasaQ = obtenerTasaQuincenal(tasa)
                 const tasaDec = new Decimal(tasaQ).dividedBy(100)
+                // En amortización francesa, el interés de la tasa principal siempre se calcula sobre el saldo pendiente
+                if (usaCuotaFija && tasaInteresPura && (tasa.id === tasaInteresPura.id || tasa.nombre === tasaInteresPura.nombre)) {
+                    base = saldoInicial
+                } else {
+                    base = aplicacionBase === 'saldo_pendiente' ? saldoInicial : mOtorgado
+                }
                 valor = base.times(tasaDec)
             }
 
