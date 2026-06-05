@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import cookieParser from 'cookie-parser'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import rateLimit from 'express-rate-limit'
@@ -52,35 +53,39 @@ const apiLimiter = rateLimit({
 app.use('/api', apiLimiter)
 // ──────────────────────────────────────────────────────────────────────────
 
-const allowedOrigins = [
-    'http://localhost:5173',
+// ── Lista blanca de orígenes permitidos ──────────────────────────────────
+// Solo los dominios exactos del proyecto. Nunca wildcards.
+const ALLOWED_ORIGINS_PROD = [
     'https://yap-contabilidad-pol-4.onrender.com',
     'https://yap-contabilidad-pol-2.onrender.com',
     'https://yap-contabilidad-pol-1.onrender.com',
-    'https://yap-frontend.onrender.com'
+    'https://yap-frontend.onrender.com',
 ]
+
+// Agregar FRONTEND_URL dinámica si está configurada (permite cambios de URL sin redeploy)
+if (process.env.FRONTEND_URL) ALLOWED_ORIGINS_PROD.push(process.env.FRONTEND_URL)
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Permitir peticiones sin origen (como curl o Postman)
-        if (!origin) return callback(null, true);
-        
-        const isAllowedOrigin = allowedOrigins.includes(origin) || 
-                          origin.endsWith('.onrender.com')
+        // Permitir peticiones sin origen (curl, Postman, SSR)
+        if (!origin) return callback(null, true)
 
-        // localhost solo permitido fuera de producción
-        const isLocalhost = process.env.NODE_ENV !== 'production' &&
-                            origin.startsWith('http://localhost:')
-                          
-        if (isAllowedOrigin || isLocalhost || (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL)) {
-            callback(null, true);
-        } else {
-            callback(null, false);
+        // En desarrollo: permitir localhost en cualquier puerto
+        if (process.env.NODE_ENV !== 'production' && origin.startsWith('http://localhost:')) {
+            return callback(null, true)
         }
+
+        if (ALLOWED_ORIGINS_PROD.includes(origin)) {
+            return callback(null, true)
+        }
+
+        // Rechazar todos los demás orígenes
+        callback(null, false)
     },
     credentials: true
 }))
 app.use(express.json())
+app.use(cookieParser()) // Necesario para leer req.cookies en auth (httpOnly refreshToken)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 // Rutas base

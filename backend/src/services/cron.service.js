@@ -1,6 +1,7 @@
 import cron from 'node-cron'
 import { prisma } from '../lib/prisma.js'
 import { limpiarTokensExpirados } from './token.service.js'
+import { enviarRecordatorioPago } from './email.service.js'
 
 export const iniciarCronJobs = () => {
     // ── 7 AM diario — Detección de mora (sin N+1) ───────────────────────────
@@ -77,7 +78,28 @@ export const iniciarCronJobs = () => {
             })
 
             console.log(`[CRON] ${proximasAVencer.length} cuotas vencen en los próximos 7 días.`)
-            // TODO: Invocar email.service.js para enviar recordatorios cuando RESEND_API_KEY esté configurada
+
+            // Enviar recordatorio por email a cada deudor (si RESEND_API_KEY está configurada)
+            let enviados = 0
+            for (const cuota of proximasAVencer) {
+                try {
+                    if (cuota.persona?.correo) {
+                        await enviarRecordatorioPago({
+                            email: cuota.persona.correo,
+                            nombreCompleto: `${cuota.persona.primer_nombre} ${cuota.persona.primer_apellido}`,
+                            numeroCuota: cuota.numero_cuota,
+                            montoCuota: cuota.cuota_total,
+                            fechaVencimiento: cuota.fecha_programada,
+                            tipoPrestamo: cuota.prestamo?.tipo?.nombre ?? 'Libranza'
+                        })
+                        enviados++
+                    }
+                } catch (emailErr) {
+                    // Fallo silencioso — un correo fallido no debe detener el resto
+                    console.warn(`[CRON] Recordatorio no enviado a ${cuota.persona?.correo}:`, emailErr.message)
+                }
+            }
+            console.log(`[CRON] Recordatorios enviados: ${enviados}/${proximasAVencer.length}`)
         } catch (err) {
             console.error('[CRON] Error en recordatorios:', err)
         }

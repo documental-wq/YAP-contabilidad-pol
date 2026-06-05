@@ -1,4 +1,4 @@
-﻿import { Router } from 'express'
+import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { verificarToken, requiereRol } from '../middleware/auth.js'
 import { calcularPrestamo, validarTasaUsura } from '../services/financiero.service.js'
@@ -41,20 +41,41 @@ router.get('/', verificarToken, async (req, res) => {
     }
 })
 
-// Obtener todos con TODO el detalle (para reportes masivos)
+// Obtener todos con TODO el detalle (para reportes masivos) — CON PAGINACIÓN
 router.get('/todos/detallados', verificarToken, async (req, res) => {
     try {
-        const prestamos = await prisma.prestamo.findMany({
-            include: {
-                persona: true,
-                tipo: true,
-                tasas_aplicadas: { orderBy: { orden: 'asc' } },
-                cuotas: { orderBy: { numero_cuota: 'asc' } }
-            },
-            orderBy: { createdAt: 'desc' }
+        const page  = Math.max(1, parseInt(req.query.page)  || 1)
+        const limit = Math.min(500, parseInt(req.query.limit) || 200) // máximo 500 por request
+        const skip  = (page - 1) * limit
+        const estado = req.query.estado // filtro opcional
+
+        const where = estado ? { estado } : {}
+
+        const [prestamos, total] = await Promise.all([
+            prisma.prestamo.findMany({
+                where,
+                include: {
+                    persona: true,
+                    tipo: true,
+                    tasas_aplicadas: { orderBy: { orden: 'asc' } },
+                    cuotas: { orderBy: { numero_cuota: 'asc' } }
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit
+            }),
+            prisma.prestamo.count({ where })
+        ])
+
+        res.json({
+            prestamos: prestamos.map(addCodigo),
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
         })
-        res.json({ prestamos: prestamos.map(addCodigo) })
     } catch (error) {
+        console.error('[prestamos/todos/detallados]', error)
         res.status(500).json({ error: 'Error al obtener préstamos detallados' })
     }
 })

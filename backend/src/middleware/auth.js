@@ -2,19 +2,28 @@ import jwt from 'jsonwebtoken'
 import { prisma } from '../lib/prisma.js'
 import crypto from 'crypto'
 
-// Para entornos locales sin configuración, generamos un secreto aleatorio único para la sesión del servidor
-// Esto asegura seguridad total frente a ataques de forja externos
+// ── Validación de secreto JWT al arranque ─────────────────────────────────
+// En PRODUCCIÓN: si JWT_SECRET no está configurada, abortamos el proceso.
+// Arrancar sin ella expone la app a forja de tokens y pérdida de sesiones.
 let jwtSecret = process.env.JWT_SECRET
+
 if (!jwtSecret) {
+    if (process.env.NODE_ENV === 'production') {
+        console.error('❌ [FATAL] JWT_SECRET no está configurada en producción.')
+        console.error('   Configure la variable de entorno JWT_SECRET y reinicie el servidor.')
+        process.exit(1)
+    }
+
+    // En desarrollo: secreto dinámico de sesión con advertencia visible
     if (global.__jwtSecret) {
         jwtSecret = global.__jwtSecret
     } else {
         jwtSecret = crypto.randomBytes(32).toString('hex')
         global.__jwtSecret = jwtSecret
         console.warn('\n========================================================================')
-        console.warn('⚠️  [ADVERTENCIA DE SEGURIDAD] process.env.JWT_SECRET no está configurado.')
-        console.warn('Se ha generado un secreto de sesión dinámico aleatorio y seguro.')
-        console.warn('Nota: Si el servidor se reinicia, las sesiones activas expirarán.')
+        console.warn('⚠️  [DEV] JWT_SECRET no configurada — usando secreto de sesión temporal.')
+        console.warn('   Las sesiones expirarán si el servidor se reinicia.')
+        console.warn('   Genere una clave con: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
         console.warn('========================================================================\n')
     }
 }

@@ -163,6 +163,13 @@ model Prestamo {
   tipo                TipoPrestamo      @relation(fields: [tipo_id], references: [id])
   persona             Persona           @relation(fields: [persona_id], references: [id])
   pagos               RegistroPago[]
+
+  // Índices para queries frecuentes (reportes, cron de mora, dashboard)
+  @@index([estado])
+  @@index([persona_id])
+  @@index([persona_id, estado])
+  @@index([proximo_pago])
+  @@index([createdAt])
 }
 
 model CuotaProgramada {
@@ -188,6 +195,12 @@ model CuotaProgramada {
   createdAt         DateTime  @default(now())
   persona           Persona   @relation(fields: [persona_id], references: [id])
   prestamo          Prestamo  @relation(fields: [prestamo_id], references: [id])
+
+  // Índices para el cron de mora y vistas de cuotas por vencer
+  @@index([estado])
+  @@index([estado, fecha_programada])
+  @@index([prestamo_id, estado])
+  @@index([persona_id])
 }
 
 model RegistroPago {
@@ -209,6 +222,12 @@ model RegistroPago {
   createdAt            DateTime @default(now())
   persona              Persona  @relation(fields: [persona_id], references: [id])
   prestamo             Prestamo @relation(fields: [prestamo_id], references: [id])
+
+  // Índices para historial de pagos y reportes de recaudo
+  @@index([prestamo_id])
+  @@index([persona_id])
+  @@index([fecha_pago])
+  @@index([persona_id, fecha_pago])
 }
 
 model InformeGenerado {
@@ -239,6 +258,7 @@ model Usuario {
   empresa       String?        @default("CORAZA CTA Principal")
   estado        String         @default("activo")
   foto_url      String?
+  ultimoAcceso  DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]
@@ -267,5 +287,11 @@ model AuditLog {
   entidad_id  String?  // ID del registro afectado
   detalles    String?  // JSON stringificado con detalles relevantes
   createdAt   DateTime @default(now())
+
+  // Índices para búsqueda en panel de auditoría
+  @@index([accion])
+  @@index([entidad])
+  @@index([usuario_id])
+  @@index([createdAt])
 }
 

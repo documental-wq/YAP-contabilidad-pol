@@ -1,6 +1,16 @@
 import axios from 'axios'
 import { useStore } from '../store/useStore'
-import { mockDb } from './mockDb'
+
+// mockDb se carga dinámicamente SOLO si el modo offline está permitido.
+// Esto evita que las 9.741 líneas entren en el bundle de producción.
+let _mockDb = null
+const getMockDb = async () => {
+    if (!_mockDb) {
+        const mod = await import('./mockDb')
+        _mockDb = mod.mockDb
+    }
+    return _mockDb
+}
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api',
@@ -51,7 +61,8 @@ api.get = async function (url, config) {
     const isPublicRoute = url.startsWith('/publico') || url.startsWith('publico')
     if (isOffline() && !isPublicRoute) {
         console.log(`[Offline GET] ${url}`)
-        return wrapMockResponse(handleOfflineRequest('GET', url))
+        const db = await getMockDb()
+        return wrapMockResponse(handleOfflineRequest('GET', url, undefined, db))
     }
     try {
         return await originalGet.apply(this, arguments)
@@ -59,7 +70,8 @@ api.get = async function (url, config) {
         if (!isPublicRoute && shouldTriggerOffline(err)) {
             console.warn(`[Error de Servidor - Activando Modo Offline] GET ${url}`)
             enableOfflineMode()
-            return wrapMockResponse(handleOfflineRequest('GET', url))
+            const db = await getMockDb()
+            return wrapMockResponse(handleOfflineRequest('GET', url, undefined, db))
         }
         throw err
     }
@@ -70,7 +82,8 @@ api.post = async function (url, data, config) {
     const isPublicRoute = url.startsWith('/publico') || url.startsWith('publico')
     if (isOffline() && !isPublicRoute) {
         console.log(`[Offline POST] ${url}`, data)
-        return wrapMockResponse(handleOfflineRequest('POST', url, data))
+        const db = await getMockDb()
+        return wrapMockResponse(handleOfflineRequest('POST', url, data, db))
     }
     try {
         return await originalPost.apply(this, arguments)
@@ -78,7 +91,8 @@ api.post = async function (url, data, config) {
         if (!isPublicRoute && shouldTriggerOffline(err)) {
             console.warn(`[Error de Servidor - Activando Modo Offline] POST ${url}`)
             enableOfflineMode()
-            return wrapMockResponse(handleOfflineRequest('POST', url, data))
+            const db = await getMockDb()
+            return wrapMockResponse(handleOfflineRequest('POST', url, data, db))
         }
         throw err
     }
@@ -88,7 +102,8 @@ const originalPut = api.put
 api.put = async function (url, data, config) {
     if (isOffline()) {
         console.log(`[Offline PUT] ${url}`, data)
-        return wrapMockResponse(handleOfflineRequest('PUT', url, data))
+        const db = await getMockDb()
+        return wrapMockResponse(handleOfflineRequest('PUT', url, data, db))
     }
     try {
         return await originalPut.apply(this, arguments)
@@ -96,7 +111,8 @@ api.put = async function (url, data, config) {
         if (shouldTriggerOffline(err)) {
             console.warn(`[Error de Servidor - Activando Modo Offline] PUT ${url}`)
             enableOfflineMode()
-            return wrapMockResponse(handleOfflineRequest('PUT', url, data))
+            const db = await getMockDb()
+            return wrapMockResponse(handleOfflineRequest('PUT', url, data, db))
         }
         throw err
     }
@@ -106,7 +122,8 @@ const originalDelete = api.delete
 api.delete = async function (url, config) {
     if (isOffline()) {
         console.log(`[Offline DELETE] ${url}`)
-        return wrapMockResponse(handleOfflineRequest('DELETE', url))
+        const db = await getMockDb()
+        return wrapMockResponse(handleOfflineRequest('DELETE', url, undefined, db))
     }
     try {
         return await originalDelete.apply(this, arguments)
@@ -114,13 +131,14 @@ api.delete = async function (url, config) {
         if (shouldTriggerOffline(err)) {
             console.warn(`[Error de Servidor - Activando Modo Offline] DELETE ${url}`)
             enableOfflineMode()
-            return wrapMockResponse(handleOfflineRequest('DELETE', url))
+            const db = await getMockDb()
+            return wrapMockResponse(handleOfflineRequest('DELETE', url, undefined, db))
         }
         throw err
     }
 }
 
-function handleOfflineRequest(method, url, data) {
+function handleOfflineRequest(method, url, data, mockDb) {
     // cleanUrl: quita el query string y el slash inicial. ej. "/personas/buscar?q=juan" -> "personas/buscar"
     const cleanUrl = url.split('?')[0].replace(/^\//, '');
     const seg = cleanUrl.split('/'); // seg[0]=recurso, seg[1]=id, seg[2]=sub-id
@@ -272,6 +290,8 @@ api.interceptors.request.use(config => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`
     }
+    // Las cookies httpOnly (yap_refresh) se envían automáticamente por el navegador
+    // con credentials:true — no necesitamos gestionarlas aquí
     return config
 }, error => {
     return Promise.reject(error)
@@ -299,51 +319,43 @@ api.interceptors.response.use(
                             originalRequest?.url?.includes('/auth/login')
 
         if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
-            const refreshToken = useStore.getState().refreshToken
-
-            if (refreshToken) {
-                if (isRefreshing) {
-                    // Cola de peticiones mientras se refresca
-                    return new Promise((resolve, reject) => {
-                        failedQueue.push({ resolve, reject })
-                    }).then(token => {
-                        originalRequest.headers.Authorization = `Bearer ${token}`
-                        return axios(originalRequest)
-                    }).catch(err => Promise.reject(err))
-                }
-
-                originalRequest._retry = true
-                isRefreshing = true
-
-                try {
-                    // Llamada directa a axios base para evitar el interceptor
-                    const { data } = await axios.post(
-                        `${api.defaults.baseURL}/auth/refresh`,
-                        { refreshToken }
-                    )
-
-                    const newToken = data.token
-                    useStore.getState().setToken(newToken, data.usuario)
-                    processQueue(null, newToken)
-
-                    originalRequest.headers.Authorization = `Bearer ${newToken}`
+            if (isRefreshing) {
+                // Cola de peticiones mientras se refresca
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject })
+                }).then(token => {
+                    originalRequest.headers.Authorization = `Bearer ${token}`
                     return axios(originalRequest)
-                } catch (refreshError) {
-                    processQueue(refreshError, null)
-                    useStore.getState().logout()
-                    if (window.location.pathname !== '/login') {
-                        window.location.href = '/login'
-                    }
-                    return Promise.reject(refreshError)
-                } finally {
-                    isRefreshing = false
-                }
-            } else {
-                // Sin refresh token → logout directo
+                }).catch(err => Promise.reject(err))
+            }
+
+            originalRequest._retry = true
+            isRefreshing = true
+
+            try {
+                // El navegador envía la cookie httpOnly yap_refresh automáticamente
+                const { data } = await axios.post(
+                    `${api.defaults.baseURL}/auth/refresh`,
+                    {},
+                    { withCredentials: true }
+                )
+
+                const newToken = data.token
+                useStore.getState().setToken(newToken, data.usuario)
+                processQueue(null, newToken)
+
+                originalRequest.headers.Authorization = `Bearer ${newToken}`
+                return axios(originalRequest)
+            } catch (refreshError) {
+                // Cookie expirada o revocada — forzar logout
+                processQueue(refreshError, null)
                 useStore.getState().logout()
                 if (window.location.pathname !== '/login') {
                     window.location.href = '/login'
                 }
+                return Promise.reject(refreshError)
+            } finally {
+                isRefreshing = false
             }
         }
 

@@ -1,4 +1,4 @@
-﻿import { Router } from 'express'
+import { Router } from 'express'
 import bcrypt from 'bcrypt'
 import { prisma } from '../lib/prisma.js'
 import { verificarToken, requiereRol } from '../middleware/auth.js'
@@ -23,6 +23,7 @@ router.get('/', requiereRol(['superadmin', 'administrador']), async (req, res) =
                 correo: true,
                 rol: true,
                 estado: true,
+                ultimoAcceso: true,
                 createdAt: true,
             },
             orderBy: {
@@ -35,7 +36,7 @@ router.get('/', requiereRol(['superadmin', 'administrador']), async (req, res) =
             ...u,
             email: u.correo, // El frontend espera email
             empresa: 'YAP (CRÉDITOS POR LIBRANZA)', // Temporal: Ajustar si el usuario se asocia a empresa en DB
-            ultimoAcceso: null, // Se puede implementar después
+            ultimoAcceso: u.ultimoAcceso,
             avatar: u.nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase(),
             creadoEn: u.createdAt
         }))
@@ -87,7 +88,7 @@ router.post('/', requiereRol(['superadmin', 'administrador']), validate(usuarioS
             ...usuarioSinPass,
             email: usuarioSinPass.correo,
             empresa: 'YAP (CRÉDITOS POR LIBRANZA)',
-            ultimoAcceso: null,
+            ultimoAcceso: usuarioSinPass.ultimoAcceso,
             avatar: usuarioSinPass.nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase(),
             creadoEn: usuarioSinPass.createdAt
         })
@@ -141,7 +142,7 @@ router.put('/:id', requiereRol(['superadmin', 'administrador']), validate(usuari
             ...usuarioSinPass,
             email: usuarioSinPass.correo,
             empresa: 'YAP (CRÉDITOS POR LIBRANZA)',
-            ultimoAcceso: null,
+            ultimoAcceso: usuarioSinPass.ultimoAcceso,
             avatar: usuarioSinPass.nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase(),
             creadoEn: usuarioSinPass.createdAt,
             estado: usuarioSinPass.estado === 'activo'

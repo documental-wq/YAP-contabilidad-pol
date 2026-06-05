@@ -23,4 +23,3 @@ export function calcularMora(cuota, fechaPagoReal, tasaMora) {
     }
 }
 
-// TODO: Daily cron job at 7am to evaluate mora across all active loans.

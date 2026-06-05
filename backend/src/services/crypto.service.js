@@ -19,14 +19,20 @@ const TAG_LENGTH = 16  // 128 bits auth tag
 function obtenerLlave() {
     const keyHex = process.env.ENCRYPTION_KEY
     if (!keyHex) {
+        if (process.env.NODE_ENV === 'production') {
+            console.error('❌ [FATAL] ENCRYPTION_KEY no está configurada en producción.')
+            console.error('   Sin esta clave, todos los datos PII cifrados serán irrecuperables.')
+            console.error('   Genere una clave con: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
+            process.exit(1)
+        }
+
+        // En desarrollo: clave dinámica de sesión con advertencia visible
         if (!global.__encryptionKey) {
             global.__encryptionKey = crypto.randomBytes(KEY_LENGTH).toString('hex')
             console.warn('\n========================================================================')
-            console.warn('⚠️  [SEGURIDAD] ENCRYPTION_KEY no configurada en .env')
-            console.warn('   Se generó una llave de sesión temporal (los datos NO son recuperables')
-            console.warn('   si el servidor se reinicia sin configurar ENCRYPTION_KEY).')
-            console.warn('   Ejecute: node -e "require(\'crypto\').randomBytes(32).toString(\'hex\')" | pbcopy')
-            console.warn('   y agregue el resultado como ENCRYPTION_KEY en su archivo .env')
+            console.warn('⚠️  [DEV] ENCRYPTION_KEY no configurada — usando clave de sesión temporal.')
+            console.warn('   Los datos cifrados NO serán recuperables si el servidor se reinicia.')
+            console.warn('   Genere una clave con: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
             console.warn('========================================================================\n')
         }
         return Buffer.from(global.__encryptionKey, 'hex')

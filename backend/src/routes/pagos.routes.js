@@ -1,12 +1,18 @@
-﻿import Decimal from 'decimal.js'
+import Decimal from 'decimal.js'
 import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { verificarToken, requiereRol } from '../middleware/auth.js'
 import { calcularMora } from '../services/mora.service.js'
 import { validate, pagoCrearSchema } from '../middleware/validate.js'
 import { registrarAccion } from '../services/audit.service.js'
+import crypto from 'crypto'
+
 // Usando mismo truncamiento de finanzas
 const redondear2 = (n) => new Decimal(n).toDecimalPlaces(2).toNumber()
+
+// Genera número de comprobante único y seguro (sin race condition)
+const generarComprobante = (prefijo = 'CP') =>
+    `${prefijo}-${crypto.randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`
 
 const router = Router()
 
@@ -51,10 +57,9 @@ router.post('/', verificarToken, requiereRol(['superadmin', 'administrador']), v
         const data = req.body
         // Expected: cuota_id, fecha_pago, monto_recibido, metodo_pago, numero_comprobante
 
-        // GENERACIÓN AUTOMÁTICA DE CÓDIGO ÚNICO (CP001, CP002...)
+        // GENERACIÓN AUTOMÁTICA DE CÓDIGO ÚNICO (UUID-based, sin race condition)
         if (!data.numero_comprobante) {
-            const count = await prisma.registroPago.count()
-            data.numero_comprobante = `CP${String(count + 1).padStart(3, '0')}`
+            data.numero_comprobante = generarComprobante('CP')
         }
 
         const cuota = await prisma.cuotaProgramada.findUnique({
@@ -385,11 +390,10 @@ router.post('/masivo', verificarToken, requiereRol(['superadmin', 'administrador
     }
 
     const resultados = [];
-    const countTotal = await prisma.registroPago.count();
 
     for (let i = 0; i < lineas.length; i++) {
         const item = lineas[i];
-        const numComprobante = `CP-MAS-${countTotal + i + 1}`;
+        const numComprobante = generarComprobante('CP-MAS');
 
         try {
             let persona = null;

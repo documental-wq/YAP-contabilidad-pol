@@ -1,4 +1,4 @@
-﻿import { Router } from 'express'
+import { Router } from 'express'
 import bcrypt from 'bcrypt'
 import { prisma } from '../lib/prisma.js'
 import { verificarToken } from '../middleware/auth.js'
@@ -41,34 +41,62 @@ router.post('/login', loginLimiter, validate(loginSchema), async (req, res) => {
             return res.status(401).json({ error: 'Credenciales inválidas.' })
         }
 
-        // Genera access token + refresh token
-        const { accessToken, refreshToken } = await generarTokens(usuario)
+        // Actualizar último acceso del usuario
+        const usuarioActualizado = await prisma.usuario.update({
+            where: { id: usuario.id },
+            data: { ultimoAcceso: new Date() }
+        })
 
-        const { password: _, ...usuarioSinPass } = usuario
+        // Genera access token + refresh token
+        const { accessToken, refreshToken } = await generarTokens(usuarioActualizado)
+
+        const { password: _, ...usuarioSinPass } = usuarioActualizado
+
+        // ── RefreshToken en httpOnly cookie (no accesible desde JS) ──────────
+        const isProd = process.env.NODE_ENV === 'production'
+        res.cookie('yap_refresh', refreshToken, {
+            httpOnly: true,                    // No accesible desde JavaScript
+            secure: isProd,                    // Solo HTTPS en producción
+            sameSite: isProd ? 'Strict' : 'Lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 días en ms
+            path: '/api/auth'                  // Limitar alcance de la cookie
+        })
 
         res.json({
             mensaje: 'Acceso correcto',
             token: accessToken,
-            refreshToken,
             usuario: usuarioSinPass
         })
     } catch (error) {
+        console.error('[auth/login]', error)
         res.status(500).json({ error: 'Error interno del servidor' })
     }
 })
 
-// Renovar access token
+// Renovar access token — lee el refreshToken desde cookie httpOnly
 router.post('/refresh', async (req, res) => {
     try {
-        const { refreshToken } = req.body
+        // Leer de cookie (seguro) con fallback al body para compatibilidad offline/dev
+        const refreshToken = req.cookies?.yap_refresh || req.body?.refreshToken
         if (!refreshToken) {
             return res.status(400).json({ error: 'Se requiere el refreshToken.' })
         }
 
         const resultado = await renovarAccessToken(refreshToken)
         if (!resultado) {
+            res.clearCookie('yap_refresh', { path: '/api/auth' })
             return res.status(401).json({ error: 'Refresh token inválido o expirado. Por favor inicia sesión nuevamente.' })
         }
+
+        // Renovar la cookie con el mismo refreshToken (o uno nuevo si el servicio lo rota)
+        const isProd = process.env.NODE_ENV === 'production'
+        res.cookie('yap_refresh', refreshToken, {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: isProd ? 'Strict' : 'Lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            path: '/api/auth'
+        })
 
         res.json({
             mensaje: 'Token renovado',
@@ -76,17 +104,20 @@ router.post('/refresh', async (req, res) => {
             usuario: resultado.usuario
         })
     } catch (error) {
+        console.error('[auth/refresh]', error)
         res.status(500).json({ error: 'Error al renovar sesión' })
     }
 })
 
-// Cerrar sesión
+// Cerrar sesión — revoca token en BD y borra la cookie
 router.post('/logout', async (req, res) => {
     try {
-        const { refreshToken } = req.body
-        await revocarRefreshToken(refreshToken)
+        const refreshToken = req.cookies?.yap_refresh || req.body?.refreshToken
+        if (refreshToken) await revocarRefreshToken(refreshToken)
+        res.clearCookie('yap_refresh', { path: '/api/auth' })
         res.json({ mensaje: 'Sesión terminada exitosamente.' })
     } catch (error) {
+        console.error('[auth/logout]', error)
         res.status(500).json({ error: 'Error al cerrar sesión' })
     }
 })

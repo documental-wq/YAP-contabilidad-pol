@@ -1,6 +1,15 @@
 import axios from 'axios'
 import { isOffline } from './api'
-import { mockDb } from './mockDb'
+
+// mockDb se carga dinámicamente SOLO si el modo offline está permitido.
+let _mockDb = null
+const getMockDb = async () => {
+    if (!_mockDb) {
+        const mod = await import('./mockDb')
+        _mockDb = mod.mockDb
+    }
+    return _mockDb
+}
 
 const apiCliente = axios.create({
     baseURL: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'}/cliente`,
@@ -23,7 +32,8 @@ const originalGet = apiCliente.get
 apiCliente.get = async function (url, config) {
     if (isOffline()) {
         console.log(`[Offline Client GET] ${url}`)
-        return wrapMockResponse(handleOfflineClientRequest('GET', url))
+        const db = await getMockDb()
+        return wrapMockResponse(handleOfflineClientRequest('GET', url, undefined, db))
     }
     try {
         return await originalGet.apply(this, arguments)
@@ -31,7 +41,8 @@ apiCliente.get = async function (url, config) {
         if (!err.response) { // Servidor apagado
             console.warn(`[Error de Servidor - Activando Modo Offline] Client GET ${url}`)
             localStorage.setItem('yap_offline_mode', 'true')
-            return wrapMockResponse(handleOfflineClientRequest('GET', url))
+            const db = await getMockDb()
+            return wrapMockResponse(handleOfflineClientRequest('GET', url, undefined, db))
         }
         throw err
     }
@@ -41,7 +52,8 @@ const originalPost = apiCliente.post
 apiCliente.post = async function (url, data, config) {
     if (isOffline()) {
         console.log(`[Offline Client POST] ${url}`, data)
-        return wrapMockResponse(handleOfflineClientRequest('POST', url, data))
+        const db = await getMockDb()
+        return wrapMockResponse(handleOfflineClientRequest('POST', url, data, db))
     }
     try {
         return await originalPost.apply(this, arguments)
@@ -49,13 +61,14 @@ apiCliente.post = async function (url, data, config) {
         if (!err.response) {
             console.warn(`[Error de Servidor - Activando Modo Offline] Client POST ${url}`)
             localStorage.setItem('yap_offline_mode', 'true')
-            return wrapMockResponse(handleOfflineClientRequest('POST', url, data))
+            const db = await getMockDb()
+            return wrapMockResponse(handleOfflineClientRequest('POST', url, data, db))
         }
         throw err
     }
 }
 
-function handleOfflineClientRequest(method, url, data) {
+function handleOfflineClientRequest(method, url, data, db) {
     const cleanUrl = url.split('?')[0].replace(/^\//, '');
     
     // Obtener la ID del cliente autenticado del token mockeado o localStorage
@@ -63,19 +76,19 @@ function handleOfflineClientRequest(method, url, data) {
     const clienteId = currentCliente.id || 'per-1'; // fallback a per-1 si no hay sesión
     
     if (cleanUrl === 'auth/login') {
-        return mockDb.loginCliente(data?.cedula, data?.password)
+        return db.loginCliente(data?.cedula, data?.password)
     }
     if (cleanUrl === 'dashboard') {
-        return mockDb.getClienteDashboard(clienteId)
+        return db.getClienteDashboard(clienteId)
     }
     if (cleanUrl === 'prestamos') {
-        return mockDb.getClientePrestamos(clienteId)
+        return db.getClientePrestamos(clienteId)
     }
     if (cleanUrl === 'pagos') {
-        return mockDb.getClientePagos(clienteId)
+        return db.getClientePagos(clienteId)
     }
     if (cleanUrl === 'perfil/cambiar-pin') {
-        return mockDb.cambiarPinCliente(clienteId, data?.nuevoPin)
+        return db.cambiarPinCliente(clienteId, data?.nuevoPin)
     }
     
     return { status: 200, data: {} }

@@ -608,3 +608,88 @@ export function diagnosticarEmailService() {
         ]
     }
 }
+
+/**
+ * Envía recordatorio de pago próximo a vencer (llamado por el cron quincenal).
+ * Si RESEND_API_KEY no está configurada, el fallo es silencioso (solo log).
+ *
+ * @param {object} params
+ * @param {string} params.email
+ * @param {string} params.nombreCompleto
+ * @param {number} params.numeroCuota
+ * @param {number} params.montoCuota
+ * @param {Date}   params.fechaVencimiento
+ * @param {string} params.tipoPrestamo
+ */
+export async function enviarRecordatorioPago({ email, nombreCompleto, numeroCuota, montoCuota, fechaVencimiento, tipoPrestamo }) {
+    const formatCOP = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n)
+    const formatFecha = (d) => new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Recordatorio de Pago — YAP</title>
+  <style>
+    body { background:#060c1b; color:#d1d5db; font-family:'Segoe UI',system-ui,sans-serif; margin:0; padding:40px 10px; }
+    .box { max-width:560px; margin:0 auto; background:#0d1527; border:1px solid #1e2d4a; border-radius:20px; overflow:hidden; }
+    .hdr { background:linear-gradient(135deg,#f59e0b,#d97706); padding:28px; text-align:center; }
+    .hdr h1 { color:#fff; margin:0; font-size:28px; font-weight:900; letter-spacing:3px; }
+    .hdr p  { color:rgba(255,255,255,.85); margin:4px 0 0; font-size:11px; letter-spacing:3px; text-transform:uppercase; }
+    .body { padding:32px 28px; }
+    .alert { background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.25); border-radius:14px; padding:20px; text-align:center; margin-bottom:24px; }
+    .alert-label { font-size:11px; text-transform:uppercase; letter-spacing:2px; color:#f59e0b; font-weight:700; margin-bottom:6px; }
+    .alert-value { font-size:42px; font-weight:900; color:#fff; margin:0; }
+    .alert-sub { font-size:12px; color:#9ca3af; margin-top:6px; }
+    table { width:100%; border-collapse:collapse; margin-bottom:24px; }
+    td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.05); font-size:14px; }
+    .lbl { color:#6b7280; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; width:40%; }
+    .val { color:#fff; }
+    .ftr { background:#090e1a; padding:20px; text-align:center; border-top:1px solid #1e2d4a; font-size:11px; color:#6b7280; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="hdr"><h1>YAP</h1><p>Recordatorio de Pago</p></div>
+    <div class="body">
+      <p style="color:#fff;font-size:16px;font-weight:700;margin:0 0 16px">Hola, ${nombreCompleto} 👋</p>
+      <p style="color:#9ca3af;font-size:14px;line-height:1.6;margin:0 0 20px">
+        Te recordamos que tu próxima cuota de libranza vence pronto. Te invitamos a verificar que tu nómina esté al día para evitar recargos por mora.
+      </p>
+      <div class="alert">
+        <p class="alert-label">Monto a descontar</p>
+        <p class="alert-value">${formatCOP(montoCuota)}</p>
+        <p class="alert-sub">Cuota N° ${numeroCuota} — ${tipoPrestamo}</p>
+      </div>
+      <table>
+        <tr><td class="lbl">Fecha límite</td><td class="val">${formatFecha(fechaVencimiento)}</td></tr>
+        <tr><td class="lbl">Modalidad</td><td class="val">Descuento automático por nómina</td></tr>
+        <tr><td class="lbl">Cuota N°</td><td class="val">${numeroCuota}</td></tr>
+      </table>
+      <p style="font-size:13px;color:#9ca3af;line-height:1.6;margin:0">
+        Si ya realizaste tu pago o tienes alguna inquietud, comunícate con tu área de nómina o responde este correo.
+      </p>
+    </div>
+    <div class="ftr"><p><strong>YAP S.A.S. — Créditos por Libranza</strong></p><p>Notificación automática — no responder directamente.</p></div>
+  </div>
+</body>
+</html>`
+
+    if (resend) {
+        try {
+            await resend.emails.send({
+                from: EMAIL_FROM,
+                to: email,
+                subject: `⚠️ Recordatorio: Tu cuota N°${numeroCuota} vence el ${formatFecha(fechaVencimiento)}`,
+                html
+            })
+            return { sent: true }
+        } catch (err) {
+            console.warn(`[EmailService] Recordatorio no enviado a ${email}:`, err.message)
+        }
+    }
+
+    // Fallback: solo log (no bloquear el cron si Resend no está configurado)
+    console.log(`[EmailService][Recordatorio] ${email} | Cuota ${numeroCuota} | ${formatFecha(fechaVencimiento)} | ${formatCOP(montoCuota)}`)
+    return { sent: false, method: 'fallback_log' }
+}
