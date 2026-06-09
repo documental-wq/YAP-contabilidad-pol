@@ -465,7 +465,7 @@ function ModalSimulador({ onClose, onPrintSuccess, initialPersonaId }) {
                 valor_fijo: tasa.tipo_calculo === 'monto_fijo' ? parseFloat(tasa.valor_snapshot) : 0,
                 tipo_calculo: tasa.tipo_calculo,
                 es_cargo_unico: tasa.es_cargo_unico,
-                aplica_sobre: 'capital_inicial'
+                aplica_sobre: 'saldo_pendiente'
             })
 
             // Actualizar la tasa local con la ID real de la DB

@@ -42,7 +42,7 @@ export function calcularCuotaFija(principal, tasaQuincenal, cuotas) {
     return redondear2(principal * (r * factor) / (factor - 1))
 }
 
-export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAsignadas, fechaPrimerPago, metodoAmortizacion = 'frances', diferirCargos = false }) {
+export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAsignadas, fechaPrimerPago, metodoAmortizacion = 'lineal', diferirCargos = true }) {
     const tasasPeriodicas = tasasAsignadas.filter(t => t.activa && !t.es_cargo_unico && !t.es_tasa_mora)
     const tasasUnicas = tasasAsignadas.filter(t => t.activa && t.es_cargo_unico)
 
@@ -52,7 +52,7 @@ export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAs
     if (mOtorgado <= 0 || nCuotas <= 0) return null
 
     // Buscamos la primera tasa periódica de 'interés' puro para el cálculo de amortización francesa si aplica
-    const tasaInteresPura = tasasPeriodicas.find(t => {
+    const tasaInteresPura = tasasPeriodicas.find(t => t.es_interes_principal) || tasasPeriodicas.find(t => {
         const name = (t.nombre_snapshot ?? t.nombre ?? '').toLowerCase();
         return name.includes('interés') || 
                name.includes('interes') || 
@@ -95,7 +95,7 @@ export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAs
                 if (usaCuotaFija && tasaInteresPura && (tasa.id === tasaInteresPura.id || tasa.nombre === tasaInteresPura.nombre)) {
                     valor = redondear2(saldoInicial * (tasaQ / 100))
                 } else {
-                    const base = aplicacionBase === 'saldo_pendiente' ? saldoInicial : mOtorgado
+                    const base = saldoInicial
                     valor = redondear2(base * (tasaQ / 100))
                 }
             }

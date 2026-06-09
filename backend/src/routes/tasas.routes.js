@@ -1,4 +1,4 @@
-﻿import { Router } from 'express'
+import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { verificarToken, requiereRol } from '../middleware/auth.js'
 
@@ -32,7 +32,7 @@ router.get('/:id', verificarToken, async (req, res) => {
 // Crear nueva tasa (dominio total, CUALQUIER NOMBRE, CUALQUIER %)
 router.post('/', verificarToken, requiereRol(['superadmin', 'administrador']), async (req, res) => {
     try {
-        const data = req.body
+        const { nombre, descripcion, tipo_calculo, valor_porcentaje, valor_fijo, aplica_sobre, es_cargo_unico, es_tasa_mora, es_interes_principal, se_incluye_en_cuota, estado } = req.body
         const ultimaTasa = await prisma.tasaInteres.findFirst({
             orderBy: { orden_en_tabla: 'desc' }
         })
@@ -40,12 +40,23 @@ router.post('/', verificarToken, requiereRol(['superadmin', 'administrador']), a
 
         const nuevaTasa = await prisma.tasaInteres.create({
             data: {
-                ...data,
+                nombre,
+                descripcion,
+                tipo_calculo,
+                valor_porcentaje: valor_porcentaje !== undefined ? parseFloat(valor_porcentaje) : 0,
+                valor_fijo: valor_fijo !== undefined ? parseFloat(valor_fijo) : null,
+                aplica_sobre,
+                es_cargo_unico: es_cargo_unico !== undefined ? Boolean(es_cargo_unico) : undefined,
+                es_tasa_mora: es_tasa_mora !== undefined ? Boolean(es_tasa_mora) : undefined,
+                es_interes_principal: es_interes_principal !== undefined ? Boolean(es_interes_principal) : undefined,
+                se_incluye_en_cuota: se_incluye_en_cuota !== undefined ? Boolean(se_incluye_en_cuota) : undefined,
+                estado,
                 orden_en_tabla: orden
             }
         })
         res.status(201).json({ mensaje: 'Tasa creada exitosamente', tasa: nuevaTasa })
     } catch (error) {
+        console.error(error)
         res.status(500).json({ error: 'Error al crear la tasa' })
     }
 })
@@ -54,15 +65,28 @@ router.post('/', verificarToken, requiereRol(['superadmin', 'administrador']), a
 // REGLA CRÍTICA: Editar una tasa global NO AFECTA a los préstamos que ya tengan su propio "Snapshot" guardado en PrestamTasa.
 router.put('/:id', verificarToken, requiereRol(['superadmin', 'administrador']), async (req, res) => {
     try {
-        const dataUpdate = req.body
+        const { nombre, descripcion, tipo_calculo, valor_porcentaje, valor_fijo, aplica_sobre, es_cargo_unico, es_tasa_mora, es_interes_principal, se_incluye_en_cuota, estado } = req.body
         const id = req.params.id
 
         const tasaEditada = await prisma.tasaInteres.update({
             where: { id },
-            data: dataUpdate
+            data: {
+                nombre,
+                descripcion,
+                tipo_calculo,
+                valor_porcentaje: valor_porcentaje !== undefined ? parseFloat(valor_porcentaje) : undefined,
+                valor_fijo: valor_fijo !== undefined ? (valor_fijo === null ? null : parseFloat(valor_fijo)) : undefined,
+                aplica_sobre,
+                es_cargo_unico: es_cargo_unico !== undefined ? Boolean(es_cargo_unico) : undefined,
+                es_tasa_mora: es_tasa_mora !== undefined ? Boolean(es_tasa_mora) : undefined,
+                es_interes_principal: es_interes_principal !== undefined ? Boolean(es_interes_principal) : undefined,
+                se_incluye_en_cuota: se_incluye_en_cuota !== undefined ? Boolean(se_incluye_en_cuota) : undefined,
+                estado
+            }
         })
         res.json({ mensaje: 'Tasa actualizada exitosamente (No afecta préstamos existentes)', tasa: tasaEditada })
     } catch (error) {
+        console.error(error)
         res.status(500).json({ error: 'Error al editar tasa' })
     }
 })
