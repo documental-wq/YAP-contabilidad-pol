@@ -82,8 +82,6 @@ export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAs
         const desglose = []
 
         for (const tasa of tasasPeriodicas) {
-            const aplicacionBase = tasa.aplica_sobre_snapshot ?? tasa.aplica_sobre
-            
             let valor = 0
             const tipoCalc = tasa.tipo_calculo_snapshot ?? tasa.tipo_calculo
             if (tipoCalc === 'monto_fijo') {
@@ -91,13 +89,7 @@ export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAs
                 valor = redondear2(parseFloat(vFijoStr.replace(',', '.')))
             } else {
                 const tasaQ = obtenerTasaQuincenal(tasa)
-                // En amortización francesa, el interés de la tasa principal siempre se calcula sobre el saldo pendiente
-                if (usaCuotaFija && tasaInteresPura && (tasa.id === tasaInteresPura.id || tasa.nombre === tasaInteresPura.nombre)) {
-                    valor = redondear2(saldoInicial * (tasaQ / 100))
-                } else {
-                    const base = saldoInicial
-                    valor = redondear2(base * (tasaQ / 100))
-                }
+                valor = redondear2(saldoInicial * (tasaQ / 100))
             }
 
             // Si es amortización francesa, el 'interés' ya está incluido en el cálculo de la cuota fija base
@@ -106,7 +98,7 @@ export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAs
             desglose.push({
                 nombre: tasa.nombre_snapshot ?? tasa.nombre,
                 tipo: tipoCalc,
-                base: (usaCuotaFija && tasaInteresPura && (tasa.id === tasaInteresPura.id || tasa.nombre === tasaInteresPura.nombre)) ? saldoInicial : (aplicacionBase === 'saldo_pendiente' ? saldoInicial : mOtorgado),
+                base: tipoCalc === 'monto_fijo' ? 0 : saldoInicial,
                 tasaQ: obtenerTasaQuincenal(tasa),
                 valor,
                 esUnico: false
