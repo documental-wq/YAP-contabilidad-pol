@@ -287,6 +287,24 @@ function ModalSimulador({ onClose, onPrintSuccess, initialPersonaId }) {
         return texto.includes(busquedaPersona.toLowerCase())
     }).slice(0, 10)
 
+    const tasaInteres = tasasActivas.find(t => {
+        const name = (t.nombre ?? '').toLowerCase()
+        return (name.includes('interés') || name.includes('interes') || name.includes('tasa')) && !t.es_tasa_mora
+    })
+
+    const tasaEstudio = tasasActivas.find(t => {
+        const name = (t.nombre ?? '').toLowerCase()
+        return name.includes('estudio')
+    })
+
+    const tasaPoliza = tasasActivas.find(t => {
+        const name = (t.nombre ?? '').toLowerCase()
+        return name.includes('póliza') || name.includes('poliza') || name.includes('seguro')
+    })
+
+    const otrasTasas = tasasActivas.filter(t => t.id !== tasaInteres?.id && t.id !== tasaEstudio?.id && t.id !== tasaPoliza?.id)
+
+
     // Cerrar dropdown al hacer clic fuera
     React.useEffect(() => {
         const handleClickOutside = (e) => {
@@ -607,113 +625,256 @@ function ModalSimulador({ onClose, onPrintSuccess, initialPersonaId }) {
                         </div>
 
                         {formData.tipo_id && (
-                            <div className="mt-6 pt-6 border-t border-[var(--borde)]">
-                                <h3 className="text-[var(--texto-1)] font-bold mb-4 text-sm uppercase tracking-wider">Ajuste de Tasas (Overrides)</h3>
-                                <div className="space-y-4">
-                                    {tasasActivas.map(tasa => (
-                                        <div key={tasa.id} className={`p-4 border rounded-2xl transition-all duration-300 ${tasa.es_adhoc ? 'bg-gradient-to-br from-[rgba(0,212,255,0.08)] to-transparent border-[#00D4FF]/30 shadow-[0_8px_20px_-5px_rgba(0,212,255,0.1)]' : 'bg-white/5 border-white/10 hover:border-white/20'}`}>
-                                            <div className="flex items-center justify-between mb-3">
-                                                {tasa.es_adhoc ? (
-                                                    <div className="flex-1 mr-2">
-                                                        <input
-                                                            type="text"
-                                                            value={tasa.nombre}
-                                                            onChange={(e) => handleTasaChange(tasa.id, 'nombre', e.target.value)}
-                                                            className="w-full bg-transparent border-b border-[var(--cyan)]/30 text-sm text-[var(--texto-1)] font-bold focus:outline-none focus:border-[var(--cyan)] placeholder:text-[var(--cyan)]/40"
-                                                            placeholder="Título del cargo..."
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    <label className="flex items-center gap-3 text-sm text-[var(--texto-1)] font-bold cursor-pointer group">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={tasa.activa}
-                                                            onChange={(e) => handleTasaChange(tasa.id, 'activa', e.target.checked)}
-                                                            className="accent-[var(--cyan)] w-5 h-5 rounded-lg border-2 border-[var(--cyan)]/30 transition-all group-hover:scale-110"
-                                                        />
-                                                        <span className="tracking-tight">{tasa.nombre}</span>
-                                                        {tasa.es_cargo_unico && <span className="text-[10px] text-[#FFB020] uppercase bg-[#FFB020]/10 px-2 py-0.5 rounded-full border border-[#FFB020]/20 font-black">Único</span>}
-                                                    </label>
-                                                )}
-
-                                                <div className="flex items-center gap-1">
-                                                    {tasa.es_adhoc && !tasa.guardado && (
-                                                        <button
-                                                            onClick={() => guardarTasaGlobal(tasa)}
-                                                            className="text-[var(--cyan)] hover:bg-[var(--cyan)]/10 p-2 rounded-xl transition-all hover:scale-110"
-                                                            title="Guardar en catálogo global"
-                                                        >
-                                                            <Save size={16} />
-                                                        </button>
-                                                    )}
-                                                    {tasa.guardado && (
-                                                        <div className="text-[#10B981] p-2" title="Guardado">
-                                                            <Eye size={16} />
-                                                        </div>
-                                                    )}
-                                                    <button onClick={() => eliminarTasaAdhoc(tasa.id)} className="text-[#F43F5E] hover:bg-[#F43F5E]/10 p-2 rounded-xl transition-all hover:scale-110">
-                                                        <Trash2 size={16} />
-                                                    </button>
+                            <div className="mt-6 pt-6 border-t border-[var(--borde)] space-y-5">
+                                <h3 className="text-[var(--texto-1)] font-bold text-xs uppercase tracking-wider mb-2">Tasas y Cargos Aplicados</h3>
+                                
+                                {/* 1. Interés */}
+                                {tasaInteres && (
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="flex items-center gap-2.5 text-sm text-[var(--texto-1)] font-bold cursor-pointer group">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={tasaInteres.activa}
+                                                    onChange={(e) => handleTasaChange(tasaInteres.id, 'activa', e.target.checked)}
+                                                    className="accent-[var(--cyan)] w-4 h-4 rounded border border-white/20 transition-all group-hover:scale-110"
+                                                />
+                                                <span className="tracking-tight">{tasaInteres.nombre}</span>
+                                            </label>
+                                        </div>
+                                        {tasaInteres.activa && (
+                                            <div className="flex items-center gap-2">
+                                                <select
+                                                    value={tasaInteres.tipo_calculo}
+                                                    onChange={(e) => handleTasaChange(tasaInteres.id, 'tipo_calculo', e.target.value)}
+                                                    className="bg-[var(--fondo-input)] border border-[var(--borde)] text-[var(--texto-1)] text-[11px] font-bold px-2 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)]"
+                                                >
+                                                    <option value="porcentaje_periodico">% Periódico (Interés)</option>
+                                                    <option value="monto_fijo">$ Valor Fijo (Cargo)</option>
+                                                </select>
+                                                <div className="relative flex-1">
+                                                    <input
+                                                        type="number" step="0.0001"
+                                                        value={tasaInteres.valor_snapshot ?? tasaInteres.valor_porcentaje ?? tasaInteres.valor_fijo}
+                                                        onChange={(e) => handleTasaChange(tasaInteres.id, 'valor_snapshot', e.target.value)}
+                                                        className="w-full bg-[var(--cyan)]/5 border border-[#4FD1C5]/30 text-[#4FD1C5] font-black text-sm px-3 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)] text-right pr-7"
+                                                    />
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-[#4FD1C5] opacity-60">
+                                                        {tasaInteres.tipo_calculo === 'porcentaje_periodico' ? '%' : '$'}
+                                                    </span>
                                                 </div>
                                             </div>
+                                        )}
+                                    </div>
+                                )}
 
-                                            {tasa.activa && (
-                                                <div className="space-y-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="relative flex-1">
+                                {/* 2. Estudio de Crédito */}
+                                {tasaEstudio && (
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="flex items-center gap-2.5 text-sm text-[var(--texto-1)] font-bold cursor-pointer group">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={tasaEstudio.activa}
+                                                    onChange={(e) => handleTasaChange(tasaEstudio.id, 'activa', e.target.checked)}
+                                                    className="accent-[var(--cyan)] w-4 h-4 rounded border border-white/20 transition-all group-hover:scale-110"
+                                                />
+                                                <span className="tracking-tight">{tasaEstudio.nombre}</span>
+                                            </label>
+                                            {tasaEstudio.es_cargo_unico && <span className="text-[9px] text-[#FFB020] uppercase bg-[#FFB020]/10 px-2 py-0.5 rounded-full border border-[#FFB020]/20 font-black">Único</span>}
+                                        </div>
+                                        {tasaEstudio.activa && (
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2">
+                                                    <select
+                                                        value={tasaEstudio.tipo_calculo}
+                                                        onChange={(e) => handleTasaChange(tasaEstudio.id, 'tipo_calculo', e.target.value)}
+                                                        className="bg-[var(--fondo-input)] border border-[var(--borde)] text-[var(--texto-1)] text-[11px] font-bold px-2 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)]"
+                                                    >
+                                                        <option value="porcentaje_periodico">% Periódico (Interés)</option>
+                                                        <option value="monto_fijo">$ Valor Fijo (Cargo)</option>
+                                                    </select>
+                                                    <div className="relative flex-1">
+                                                        <input
+                                                            type="number" step="0.0001"
+                                                            value={tasaEstudio.valor_snapshot ?? tasaEstudio.valor_porcentaje ?? tasaEstudio.valor_fijo}
+                                                            onChange={(e) => handleTasaChange(tasaEstudio.id, 'valor_snapshot', e.target.value)}
+                                                            className="w-full bg-[var(--cyan)]/5 border border-[#4FD1C5]/30 text-[#4FD1C5] font-black text-sm px-3 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)] text-right pr-7"
+                                                        />
+                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-[#4FD1C5] opacity-60">
+                                                            {tasaEstudio.tipo_calculo === 'porcentaje_periodico' ? '%' : '$'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <label className="flex items-center gap-2 p-2 bg-black/5 rounded-xl border border-[var(--borde)] cursor-pointer hover:bg-black/10 transition-colors group">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={tasaEstudio.es_cargo_unico}
+                                                        onChange={(e) => handleTasaChange(tasaEstudio.id, 'es_cargo_unico', e.target.checked)}
+                                                        className="accent-[var(--cyan)] w-3.5 h-3.5 rounded border border-white/20"
+                                                    />
+                                                    <span className="text-[9px] text-[var(--texto-2)] group-hover:text-[var(--texto-1)] font-bold uppercase tracking-wide">
+                                                        ¿Cobrar solo una vez?
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* 3. Póliza */}
+                                {tasaPoliza && (
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="flex items-center gap-2.5 text-sm text-[var(--texto-1)] font-bold cursor-pointer group">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={tasaPoliza.activa}
+                                                    onChange={(e) => handleTasaChange(tasaPoliza.id, 'activa', e.target.checked)}
+                                                    className="accent-[var(--cyan)] w-4 h-4 rounded border border-white/20 transition-all group-hover:scale-110"
+                                                />
+                                                <span className="tracking-tight">{tasaPoliza.nombre}</span>
+                                            </label>
+                                            {tasaPoliza.es_cargo_unico && <span className="text-[9px] text-[#FFB020] uppercase bg-[#FFB020]/10 px-2 py-0.5 rounded-full border border-[#FFB020]/20 font-black">Único</span>}
+                                        </div>
+                                        {tasaPoliza.activa && (
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2">
+                                                    <select
+                                                        value={tasaPoliza.tipo_calculo}
+                                                        onChange={(e) => handleTasaChange(tasaPoliza.id, 'tipo_calculo', e.target.value)}
+                                                        className="bg-[var(--fondo-input)] border border-[var(--borde)] text-[var(--texto-1)] text-[11px] font-bold px-2 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)]"
+                                                    >
+                                                        <option value="porcentaje_periodico">% Periódico (Interés)</option>
+                                                        <option value="monto_fijo">$ Valor Fijo (Cargo)</option>
+                                                    </select>
+                                                    <div className="relative flex-1">
+                                                        <input
+                                                            type="number" step="0.0001"
+                                                            value={tasaPoliza.valor_snapshot ?? tasaPoliza.valor_porcentaje ?? tasaPoliza.valor_fijo}
+                                                            onChange={(e) => handleTasaChange(tasaPoliza.id, 'valor_snapshot', e.target.value)}
+                                                            className="w-full bg-[var(--cyan)]/5 border border-[#4FD1C5]/30 text-[#4FD1C5] font-black text-sm px-3 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)] text-right pr-7"
+                                                        />
+                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-[#4FD1C5] opacity-60">
+                                                            {tasaPoliza.tipo_calculo === 'porcentaje_periodico' ? '%' : '$'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <label className="flex items-center gap-2 p-2 bg-black/5 rounded-xl border border-[var(--borde)] cursor-pointer hover:bg-black/10 transition-colors group">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={tasaPoliza.es_cargo_unico}
+                                                        onChange={(e) => handleTasaChange(tasaPoliza.id, 'es_cargo_unico', e.target.checked)}
+                                                        className="accent-[var(--cyan)] w-3.5 h-3.5 rounded border border-white/20"
+                                                    />
+                                                    <span className="text-[9px] text-[var(--texto-2)] group-hover:text-[var(--texto-1)] font-bold uppercase tracking-wide">
+                                                        ¿Cobrar solo una vez?
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Adicionales */}
+                                {otrasTasas.length > 0 && (
+                                    <div className="space-y-3 pt-3 border-t border-white/5 animate-fade-in">
+                                        <h4 className="text-[var(--texto-3)] font-bold text-[10px] uppercase tracking-wider">Cargos Adicionales</h4>
+                                        {otrasTasas.map(tasa => (
+                                            <div key={tasa.id} className="p-4 bg-white/5 border border-white/10 rounded-2xl space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    {tasa.es_adhoc ? (
+                                                        <div className="flex-1 mr-2">
+                                                            <input
+                                                                type="text"
+                                                                value={tasa.nombre}
+                                                                onChange={(e) => handleTasaChange(tasa.id, 'nombre', e.target.value)}
+                                                                className="w-full bg-transparent border-b border-[var(--cyan)]/30 text-sm text-[var(--texto-1)] font-bold focus:outline-none focus:border-[var(--cyan)]"
+                                                                placeholder="Título del cargo..."
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <label className="flex items-center gap-2.5 text-sm text-[var(--texto-1)] font-bold cursor-pointer group">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={tasa.activa}
+                                                                onChange={(e) => handleTasaChange(tasa.id, 'activa', e.target.checked)}
+                                                                className="accent-[var(--cyan)] w-4 h-4 rounded border border-white/20 transition-all group-hover:scale-110"
+                                                            />
+                                                            <span className="tracking-tight">{tasa.nombre}</span>
+                                                        </label>
+                                                    )}
+                                                    <div className="flex items-center gap-1">
+                                                        {tasa.es_adhoc && !tasa.guardado && (
+                                                            <button
+                                                                onClick={() => guardarTasaGlobal(tasa)}
+                                                                className="text-[var(--cyan)] hover:bg-[var(--cyan)]/10 p-1.5 rounded-lg transition-colors"
+                                                                title="Guardar en catálogo"
+                                                            >
+                                                                <Save size={14} />
+                                                            </button>
+                                                        )}
+                                                        {tasa.guardado && (
+                                                            <div className="text-[#10B981] p-1.5" title="Guardado">
+                                                                <Check size={14} />
+                                                            </div>
+                                                        )}
+                                                        <button onClick={() => eliminarTasaAdhoc(tasa.id)} className="text-[#F43F5E] hover:bg-[#F43F5E]/10 p-1.5 rounded-lg transition-colors">
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                {tasa.activa && (
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center gap-2">
                                                             <select
                                                                 value={tasa.tipo_calculo}
                                                                 onChange={(e) => handleTasaChange(tasa.id, 'tipo_calculo', e.target.value)}
-                                                                className="w-full bg-[var(--fondo-input)] border border-[var(--borde)] text-[var(--texto-1)] text-[11px] font-bold px-3 py-2.5 rounded-xl focus:outline-none focus:border-[var(--cyan)] appearance-none"
+                                                                className="bg-[var(--fondo-input)] border border-[var(--borde)] text-[var(--texto-1)] text-[11px] font-bold px-2 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)]"
                                                             >
                                                                 <option value="porcentaje_periodico">% Periódico (Interés)</option>
                                                                 <option value="monto_fijo">$ Valor Fijo (Cargo)</option>
                                                             </select>
-                                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--texto-3)]">
-                                                                <Filter size={10} />
+                                                            <div className="relative flex-1">
+                                                                <input
+                                                                    type="number" step="0.0001"
+                                                                    value={tasa.valor_snapshot ?? tasa.valor_porcentaje ?? tasa.valor_fijo}
+                                                                    onChange={(e) => handleTasaChange(tasa.id, 'valor_snapshot', e.target.value)}
+                                                                    className="w-full bg-[var(--cyan)]/5 border border-[#4FD1C5]/30 text-[#4FD1C5] font-black text-sm px-3 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)] text-right pr-7"
+                                                                />
+                                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-[#4FD1C5] opacity-60">
+                                                                    {tasa.tipo_calculo === 'porcentaje_periodico' ? '%' : '$'}
+                                                                </span>
                                                             </div>
                                                         </div>
-                                                        <div className="relative flex-[1.5]">
+                                                        <label className="flex items-center gap-2 p-2 bg-black/5 rounded-xl border border-[var(--borde)] cursor-pointer hover:bg-black/10 transition-colors group">
                                                             <input
-                                                                type="number" step="0.0001"
-                                                                value={tasa.valor_snapshot ?? tasa.valor_porcentaje ?? tasa.valor_fijo}
-                                                                onChange={(e) => handleTasaChange(tasa.id, 'valor_snapshot', e.target.value)}
-                                                                className="w-full bg-[var(--cyan)]/5 border border-[var(--cyan)]/30 text-[var(--cyan)] font-black text-lg px-4 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)] focus:shadow-[0_0_15px_rgba(79,209,197,0.2)]"
+                                                                type="checkbox"
+                                                                checked={tasa.es_cargo_unico}
+                                                                onChange={(e) => handleTasaChange(tasa.id, 'es_cargo_unico', e.target.checked)}
+                                                                className="accent-[var(--cyan)] w-3.5 h-3.5 rounded border border-white/20"
                                                             />
-                                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-[var(--cyan)] opacity-50 uppercase tracking-tighter">
-                                                                {tasa.tipo_calculo === 'porcentaje_periodico' ? '%' : '$'}
+                                                            <span className="text-[9px] text-[var(--texto-2)] group-hover:text-[var(--texto-1)] font-bold uppercase tracking-wide">
+                                                                ¿Cobrar solo una vez?
                                                             </span>
-                                                        </div>
+                                                        </label>
                                                     </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
 
-                                                    <label className="flex items-center gap-3 p-3 bg-black/5 rounded-xl border border-[var(--borde)] cursor-pointer hover:bg-black/10 transition-colors group">
-                                                        <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${tasa.es_cargo_unico ? 'bg-[#FFB020] border-[#FFB020]' : 'border-[var(--borde)]'}`}>
-                                                            {tasa.es_cargo_unico && <X size={12} className="text-white" />}
-                                                        </div>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={tasa.es_cargo_unico}
-                                                            onChange={(e) => handleTasaChange(tasa.id, 'es_cargo_unico', e.target.checked)}
-                                                            className="hidden"
-                                                        />
-                                                        <span className="text-[10px] text-[var(--texto-2)] group-hover:text-[var(--texto-1)] font-black uppercase tracking-widest">
-                                                            ¿Cobrar solo una vez?
-                                                        </span>
-                                                    </label>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-
-                                    <button
-                                        onClick={agregarTasaAdhoc}
-                                        className="w-full py-2 border border-dashed border-[var(--cyan)]/40 rounded-xl text-[var(--cyan)] text-xs font-bold uppercase hover:bg-[var(--cyan)]/5 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <Plus size={14} /> Agregar Tasa/Cargo Personalizado
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={agregarTasaAdhoc}
+                                    type="button"
+                                    className="w-full py-2.5 border border-dashed border-[var(--cyan)]/40 rounded-xl text-[var(--cyan)] text-xs font-bold uppercase hover:bg-[var(--cyan)]/5 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Plus size={14} /> Agregar Cargo Personalizado
+                                </button>
                             </div>
-                        )}
+                        )
+}
 
                         {/* Botón de Guardado Permanente en la columna de datos */}
                         <div className="mt-8 pt-6 border-t border-white/10">
