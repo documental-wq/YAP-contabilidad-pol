@@ -178,7 +178,7 @@ function ModalTasa({ tasa, onClose, onSave }) {
         tipo_calculo: tasa?.tipo_calculo || 'porcentaje_periodico',
         valor_porcentaje: tasa?.valor_porcentaje || 0,
         valor_fijo: tasa?.valor_fijo || 0,
-        aplica_sobre: tasa?.aplica_sobre || 'capital_inicial',
+        aplica_sobre: tasa?.aplica_sobre || 'saldo_pendiente',
         es_cargo_unico: tasa?.es_cargo_unico || false,
         es_tasa_mora: tasa?.es_tasa_mora || false,
         es_interes_principal: tasa?.es_interes_principal || false,

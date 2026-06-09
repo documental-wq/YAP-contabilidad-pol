@@ -37,7 +37,7 @@ async function main() {
     "tipo_calculo": "porcentaje_periodico",
     "valor_porcentaje": 2,
     "valor_fijo": 0,
-    "aplica_sobre": "capital_inicial",
+    "aplica_sobre": "saldo_pendiente",
     "es_cargo_unico": false,
     "es_tasa_mora": false
   },
@@ -47,7 +47,7 @@ async function main() {
     "tipo_calculo": "porcentaje_periodico",
     "valor_porcentaje": 12,
     "valor_fijo": 0,
-    "aplica_sobre": "capital_inicial",
+    "aplica_sobre": "saldo_pendiente",
     "es_cargo_unico": false,
     "es_tasa_mora": false
   },
@@ -57,7 +57,7 @@ async function main() {
     "tipo_calculo": "porcentaje_simple",
     "valor_porcentaje": 1.5,
     "valor_fijo": 0,
-    "aplica_sobre": "capital_inicial",
+    "aplica_sobre": "saldo_pendiente",
     "es_cargo_unico": true,
     "es_tasa_mora": false
   },
@@ -87,7 +87,7 @@ async function main() {
     "tipo_calculo": "porcentaje_simple",
     "valor_porcentaje": 0.5,
     "valor_fijo": 0,
-    "aplica_sobre": "capital_inicial",
+    "aplica_sobre": "saldo_pendiente",
     "es_cargo_unico": true,
     "es_tasa_mora": false
   },
@@ -97,7 +97,7 @@ async function main() {
     "tipo_calculo": "porcentaje_periodico",
     "valor_porcentaje": 0.75,
     "valor_fijo": 0,
-    "aplica_sobre": "capital_inicial",
+    "aplica_sobre": "saldo_pendiente",
     "es_cargo_unico": false,
     "es_tasa_mora": false
   }
@@ -546,7 +546,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -557,7 +557,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -579,7 +579,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 0.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -629,7 +629,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -640,7 +640,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -690,7 +690,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -701,7 +701,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 12,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -712,7 +712,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -734,7 +734,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 0.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -784,7 +784,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -795,7 +795,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -856,7 +856,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -867,7 +867,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -889,7 +889,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 0.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -939,7 +939,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -989,7 +989,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1000,7 +1000,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1050,7 +1050,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1100,7 +1100,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1111,7 +1111,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1133,7 +1133,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 0.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1183,7 +1183,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1194,7 +1194,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 12,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1205,7 +1205,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1227,7 +1227,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 0.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1277,7 +1277,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1288,7 +1288,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1349,7 +1349,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1360,7 +1360,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1410,7 +1410,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1421,7 +1421,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1471,7 +1471,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1482,7 +1482,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1504,7 +1504,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 0.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1554,7 +1554,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1565,7 +1565,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1615,7 +1615,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1626,7 +1626,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1687,7 +1687,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1698,7 +1698,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 12,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1709,7 +1709,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1731,7 +1731,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 0.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1781,7 +1781,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1792,7 +1792,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1842,7 +1842,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true
@@ -1853,7 +1853,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 1.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1875,7 +1875,7 @@ async function main() {
         "tipo_calculo": "porcentaje_simple",
         "valor_porcentaje": 0.5,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": true,
         "es_tasa_mora": false,
         "activa": true
@@ -1925,7 +1925,7 @@ async function main() {
         "tipo_calculo": "porcentaje_periodico",
         "valor_porcentaje": 2,
         "valor_fijo": 0,
-        "aplica_sobre": "capital_inicial",
+        "aplica_sobre": "saldo_pendiente",
         "es_cargo_unico": false,
         "es_tasa_mora": false,
         "activa": true

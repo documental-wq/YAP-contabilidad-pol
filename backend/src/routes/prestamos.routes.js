@@ -223,7 +223,7 @@ router.post('/', verificarToken, requiereRol(['superadmin', 'administrador']), v
                                     const parsed = parseFloat(String(valorRaw).replace(',', '.'))
                                     return isNaN(parsed) ? 0 : parsed
                                 })(),
-                                aplica_sobre_snapshot: t.aplica_sobre_snapshot ?? t.aplica_sobre ?? 'capital_inicial',
+                                aplica_sobre_snapshot: t.aplica_sobre_snapshot ?? t.aplica_sobre ?? 'saldo_pendiente',
                                 es_cargo_unico: t.es_cargo_unico ?? false,
                                 es_tasa_mora: t.es_tasa_mora ?? false,
                                 es_interes_principal: t.es_interes_principal ?? false,

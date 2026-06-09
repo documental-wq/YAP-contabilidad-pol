@@ -98,7 +98,7 @@ export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAs
             desglose.push({
                 nombre: tasa.nombre_snapshot ?? tasa.nombre,
                 tipo: tipoCalc,
-                base: tipoCalc === 'monto_fijo' ? 0 : saldoInicial,
+                base: saldoInicial,
                 tasaQ: obtenerTasaQuincenal(tasa),
                 valor,
                 esUnico: false

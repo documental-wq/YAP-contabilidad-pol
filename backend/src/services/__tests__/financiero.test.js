@@ -73,8 +73,8 @@ const cargoUnico = (porcentaje, nombre = 'Seguro de Vida') => ({
     tipo_calculo_snapshot: 'porcentaje_periodico',
     valor_porcentaje: porcentaje,
     valor_snapshot: porcentaje,
-    aplica_sobre: 'capital_inicial',
-    aplica_sobre_snapshot: 'capital_inicial'
+    aplica_sobre: 'saldo_pendiente',
+    aplica_sobre_snapshot: 'saldo_pendiente'
 })
 
 /**
@@ -672,7 +672,7 @@ describe('6. calcularMora - Intereses por Atraso', () => {
                     nombre: "Interés Corriente",
                     tipo_calculo: "porcentaje_periodico",
                     valor_porcentaje: 2.5,
-                    aplica_sobre: "capital_inicial",
+                    aplica_sobre: "saldo_pendiente",
                     es_cargo_unico: false,
                     activa: true
                 },
@@ -701,19 +701,21 @@ describe('6. calcularMora - Intereses por Atraso', () => {
                 diferirCargos: true
             })
 
-            // Verificar que todas las cuotas sean exactamente $173.200
+            // Verificar cuotas y totales con amortización lineal decreciente
             expect(resultado.cuotaPrimera).toBe(173200)
-            expect(resultado.cuotaEstandar).toBe(173200)
-            expect(resultado.cuotaUltima).toBe(173200)
-            expect(resultado.totalPagado).toBe(2078400)
-            expect(resultado.totalIntereses).toBe(450000)
+            expect(resultado.cuotaEstandar).toBe(154450)
+            expect(resultado.cuotaUltima).toBe(138825)
+            expect(resultado.totalPagado).toBe(1872150)
+            expect(resultado.totalIntereses).toBe(243750)
             expect(resultado.totalCargosUnicos).toBe(128400)
 
             resultado.tablaCuotas.forEach(cuota => {
-                expect(cuota.cuotaTotal).toBe(173200)
                 expect(cuota.capitalAbonado).toBe(125000)
-                expect(cuota.interesesCobrados).toBe(37500)
                 expect(cuota.cargosUnicos).toBe(10700)
+                // Interés decrece por cuota: cuota 1 es 37500, cuota 12 es 3125
+                const expectedInteres = 37500 - (cuota.numeroCuota - 1) * 3125
+                expect(cuota.interesesCobrados).toBe(expectedInteres)
+                expect(cuota.cuotaTotal).toBe(125000 + expectedInteres + 10700)
             })
         })
     })

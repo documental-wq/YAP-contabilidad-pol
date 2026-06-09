@@ -91,13 +91,13 @@ const logAudit = (accion, entidad, entidadId, detalles = null) => {
 };
 
 const defaultTasas = [
-    { id: 'tasa-1', nombre: 'Interés Corriente', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 2.0, valor_fijo: 0, aplica_sobre: 'capital_inicial', es_cargo_unico: false, es_tasa_mora: false, se_incluye_en_cuota: true, estado: 'activa', orden_en_tabla: 1 },
-    { id: 'tasa-2', nombre: 'AUXILIO', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 12.0, valor_fijo: 0, aplica_sobre: 'capital_inicial', es_cargo_unico: false, es_tasa_mora: false, se_incluye_en_cuota: true, estado: 'activa', orden_en_tabla: 2 },
-    { id: 'tasa-3', nombre: 'Cargo Administrativo', tipo_calculo: 'porcentaje_simple', valor_porcentaje: 1.5, valor_fijo: 0, aplica_sobre: 'capital_inicial', es_cargo_unico: true, es_tasa_mora: false, se_incluye_en_cuota: true, estado: 'activa', orden_en_tabla: 3 },
+    { id: 'tasa-1', nombre: 'Interés Corriente', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 2.0, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: false, es_tasa_mora: false, se_incluye_en_cuota: true, estado: 'activa', orden_en_tabla: 1 },
+    { id: 'tasa-2', nombre: 'AUXILIO', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 12.0, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: false, es_tasa_mora: false, se_incluye_en_cuota: true, estado: 'activa', orden_en_tabla: 2 },
+    { id: 'tasa-3', nombre: 'Cargo Administrativo', tipo_calculo: 'porcentaje_simple', valor_porcentaje: 1.5, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: true, es_tasa_mora: false, se_incluye_en_cuota: true, estado: 'activa', orden_en_tabla: 3 },
     { id: 'tasa-4', nombre: 'Seguro de Vida', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 0.25, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: false, es_tasa_mora: false, se_incluye_en_cuota: true, estado: 'activa', orden_en_tabla: 4 },
     { id: 'tasa-5', nombre: 'Interés de Mora', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 3.0, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: false, es_tasa_mora: true, se_incluye_en_cuota: true, estado: 'activa', orden_en_tabla: 5 },
-    { id: 'tasa-6', nombre: 'Aval Solidario', tipo_calculo: 'porcentaje_simple', valor_porcentaje: 0.5, valor_fijo: 0, aplica_sobre: 'capital_inicial', es_cargo_unico: true, es_tasa_mora: false, se_incluye_en_cuota: true, estado: 'activa', orden_en_tabla: 6 },
-    { id: 'tasa-7', nombre: 'Fondo Solidario', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 0.75, valor_fijo: 0, aplica_sobre: 'capital_inicial', es_cargo_unico: false, es_tasa_mora: false, se_incluye_en_cuota: true, estado: 'activa', orden_en_tabla: 7 }
+    { id: 'tasa-6', nombre: 'Aval Solidario', tipo_calculo: 'porcentaje_simple', valor_porcentaje: 0.5, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: true, es_tasa_mora: false, se_incluye_en_cuota: true, estado: 'activa', orden_en_tabla: 6 },
+    { id: 'tasa-7', nombre: 'Fondo Solidario', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 0.75, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: false, es_tasa_mora: false, se_incluye_en_cuota: true, estado: 'activa', orden_en_tabla: 7 }
 ];
 
 const defaultTipos = [
@@ -411,7 +411,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -422,7 +422,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -444,7 +444,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 0.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -494,7 +494,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -505,7 +505,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -555,7 +555,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -566,7 +566,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 12,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -577,7 +577,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -599,7 +599,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 0.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -649,7 +649,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -660,7 +660,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -721,7 +721,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -732,7 +732,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -754,7 +754,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 0.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -804,7 +804,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -854,7 +854,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -865,7 +865,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -915,7 +915,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -965,7 +965,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -976,7 +976,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -998,7 +998,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 0.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1048,7 +1048,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1059,7 +1059,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 12,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1070,7 +1070,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1092,7 +1092,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 0.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1142,7 +1142,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1153,7 +1153,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1214,7 +1214,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1225,7 +1225,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1275,7 +1275,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1286,7 +1286,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1336,7 +1336,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1347,7 +1347,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1369,7 +1369,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 0.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1419,7 +1419,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1430,7 +1430,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1480,7 +1480,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1491,7 +1491,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1552,7 +1552,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1563,7 +1563,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 12,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1574,7 +1574,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1596,7 +1596,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 0.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1646,7 +1646,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1657,7 +1657,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1707,7 +1707,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1718,7 +1718,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 1.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1740,7 +1740,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_simple",
                 "valor_porcentaje": 0.5,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": true,
                 "es_tasa_mora": false,
                 "activa": true
@@ -1790,7 +1790,7 @@ const defaultPrestamos = [
                 "tipo_calculo": "porcentaje_periodico",
                 "valor_porcentaje": 2,
                 "valor_fijo": 0,
-                "aplica_sobre": "capital_inicial",
+                "aplica_sobre": "saldo_pendiente",
                 "es_cargo_unico": false,
                 "es_tasa_mora": false,
                 "activa": true

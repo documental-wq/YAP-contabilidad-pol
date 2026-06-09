@@ -61,7 +61,7 @@ model TasaInteres {
   tipo_calculo        String              @default("porcentaje_periodico")
   valor_porcentaje    Float
   valor_fijo          Float?
-  aplica_sobre        String              @default("capital_inicial")
+  aplica_sobre        String              @default("saldo_pendiente")
   es_cargo_unico      Boolean             @default(false)
   es_tasa_mora        Boolean             @default(false)
   es_interes_principal Boolean            @default(false)

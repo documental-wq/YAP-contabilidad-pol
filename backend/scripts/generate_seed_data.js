@@ -194,13 +194,13 @@ const empresas = [
 ]
 
 const tasas = [
-    { id: 'tasa-1', nombre: 'Interés Corriente', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 2.0, valor_fijo: 0, aplica_sobre: 'capital_inicial', es_cargo_unico: false, es_tasa_mora: false },
-    { id: 'tasa-2', nombre: 'AUXILIO', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 12.0, valor_fijo: 0, aplica_sobre: 'capital_inicial', es_cargo_unico: false, es_tasa_mora: false },
-    { id: 'tasa-3', nombre: 'Cargo Administrativo', tipo_calculo: 'porcentaje_simple', valor_porcentaje: 1.5, valor_fijo: 0, aplica_sobre: 'capital_inicial', es_cargo_unico: true, es_tasa_mora: false },
+    { id: 'tasa-1', nombre: 'Interés Corriente', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 2.0, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: false, es_tasa_mora: false },
+    { id: 'tasa-2', nombre: 'AUXILIO', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 12.0, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: false, es_tasa_mora: false },
+    { id: 'tasa-3', nombre: 'Cargo Administrativo', tipo_calculo: 'porcentaje_simple', valor_porcentaje: 1.5, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: true, es_tasa_mora: false },
     { id: 'tasa-4', nombre: 'Seguro de Vida', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 0.25, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: false, es_tasa_mora: false },
     { id: 'tasa-5', nombre: 'Interés de Mora', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 3.0, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: false, es_tasa_mora: true },
-    { id: 'tasa-6', nombre: 'Aval Solidario', tipo_calculo: 'porcentaje_simple', valor_porcentaje: 0.5, valor_fijo: 0, aplica_sobre: 'capital_inicial', es_cargo_unico: true, es_tasa_mora: false },
-    { id: 'tasa-7', nombre: 'Fondo Solidario', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 0.75, valor_fijo: 0, aplica_sobre: 'capital_inicial', es_cargo_unico: false, es_tasa_mora: false }
+    { id: 'tasa-6', nombre: 'Aval Solidario', tipo_calculo: 'porcentaje_simple', valor_porcentaje: 0.5, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: true, es_tasa_mora: false },
+    { id: 'tasa-7', nombre: 'Fondo Solidario', tipo_calculo: 'porcentaje_periodico', valor_porcentaje: 0.75, valor_fijo: 0, aplica_sobre: 'saldo_pendiente', es_cargo_unico: false, es_tasa_mora: false }
 ]
 
 const tipos = [
