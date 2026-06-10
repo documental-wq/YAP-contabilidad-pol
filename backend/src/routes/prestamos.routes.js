@@ -5,6 +5,7 @@ import { calcularPrestamo, validarTasaUsura } from '../services/financiero.servi
 import { validate, prestamoCrearSchema } from '../middleware/validate.js'
 import { registrarAccion } from '../services/audit.service.js'
 import { enviarConfirmacionDesembolso } from '../services/email.service.js'
+import { descifrarPersona } from '../services/crypto.service.js'
 
 const router = Router()
 
@@ -36,7 +37,8 @@ router.get('/', verificarToken, async (req, res) => {
             }),
             prisma.prestamo.count({ where })
         ])
-        res.json({ prestamos: prestamos.map(addCodigo), total, page, totalPages: Math.ceil(total / limit) })
+        const descifrados = prestamos.map(p => addCodigo({ ...p, persona: descifrarPersona(p.persona) }))
+        res.json({ prestamos: descifrados, total, page, totalPages: Math.ceil(total / limit) })
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener préstamos' })
     }
@@ -68,8 +70,9 @@ router.get('/todos/detallados', verificarToken, async (req, res) => {
             prisma.prestamo.count({ where })
         ])
 
+        const descifrados = prestamos.map(p => addCodigo({ ...p, persona: descifrarPersona(p.persona) }))
         res.json({
-            prestamos: prestamos.map(addCodigo),
+            prestamos: descifrados,
             total,
             page,
             limit,
