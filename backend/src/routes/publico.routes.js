@@ -1,6 +1,6 @@
-﻿import { Router } from 'express'
+import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
-import { cifrarPersona, descifrarPersona } from '../services/crypto.service.js'
+import { cifrarPersona, descifrarPersona, generarHash } from '../services/crypto.service.js'
 import { enviarConfirmacionRegistro, enviarNotificacionAdminNuevaSolicitud } from '../services/email.service.js'
 import { validate, solicitudPublicaSchema } from '../middleware/validate.js'
 
@@ -39,7 +39,7 @@ router.post('/solicitar', validate(solicitudPublicaSchema), async (req, res) => 
         // Validación de campos cubierta por Zod middleware (validate)
 
         // Validar si la cédula ya existe
-        const existe = await prisma.persona.findUnique({ where: { cedula } })
+        const existe = await prisma.persona.findUnique({ where: { cedula_hash: generarHash(cedula) } })
         if (existe) {
             return res.status(400).json({ error: 'Esta cédula ya se encuentra registrada en el sistema. Por favor, comuníquese con un asesor.' })
         }
