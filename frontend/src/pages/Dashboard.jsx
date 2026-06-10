@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { KPICard } from '../components/ui/KPICard'
 import { BadgeEstado } from '../components/ui/BadgeEstado'
-import { Users, Briefcase, TrendingUp, AlertTriangle, ChevronRight, Printer } from 'lucide-react'
+import { Users, Briefcase, TrendingUp, AlertTriangle, ChevronRight, Printer, FileSpreadsheet } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 import { formatCOP, formatCOPCorto } from '../utils/formatCOP'
@@ -17,6 +17,7 @@ import { AmortizacionMasivaPDF } from '../components/prestamos/AmortizacionMasiv
 import { useRef, useMemo } from 'react'
 import { useReactToPrint } from 'react-to-print'
 import { useStore } from '../store/useStore'
+import { exportToExcel } from '../utils/exportExcel'
 
 export function Dashboard() {
     const { vistaPremium } = useStore()
@@ -123,6 +124,61 @@ export function Dashboard() {
         }
     }
 
+    const [loadingExcel, setLoadingExcel] = useState(false)
+
+    const exportarMasivoExcel = async () => {
+        try {
+            setLoadingExcel(true)
+            toast.loading("Generando y descargando reporte de Excel...", { id: 'export-excel' })
+            
+            // 1. Obtener todos los préstamos detallados
+            const res = await api.get('/prestamos/todos/detallados')
+            const prestamosList = res.data?.prestamos || []
+
+            if (prestamosList.length === 0) {
+                toast.dismiss('export-excel')
+                toast.error("No hay préstamos para exportar")
+                setLoadingExcel(false)
+                return
+            }
+
+            // 2. Mapear al mismo formato usado en pdfConsolidadoProps
+            const headers = pdfConsolidadoProps.tableHeaders
+            const rows = prestamosList.map((p) => {
+                return [
+                    { value: p?.codigo || '-' },
+                    { value: `${p?.persona?.primer_nombre || ''} ${p?.persona?.primer_apellido || ''}`.trim().toUpperCase() || 'S/N' },
+                    { value: p?.persona?.cedula || 'N/A' },
+                    { value: p?.tipo?.nombre?.toUpperCase() || 'CONSUMO' },
+                    { value: `${p?.tasa_efectiva_total || 0}%` },
+                    { value: p?.dias_mora > 0 ? p.dias_mora : 0 },
+                    { value: formatCOP(p?.monto_otorgado) },
+                    { value: formatCOP(p?.total_capital) },
+                    { value: formatCOP(p?.total_a_pagar) },
+                    { value: (p?.estado || '').toUpperCase() }
+                ]
+            })
+
+            // 3. Invocar exportToExcel
+            exportToExcel({
+                title: pdfConsolidadoProps.title,
+                subtitle: pdfConsolidadoProps.subtitle,
+                infoRows: pdfConsolidadoProps.infoRows,
+                tableHeaders: headers,
+                tableRows: rows,
+                footerText: pdfConsolidadoProps.footerText,
+                fileName: `YAP-Consolidado-Cartera-${new Date().toISOString().split('T')[0]}`
+            })
+
+            toast.success("Excel descargado correctamente", { id: 'export-excel' })
+        } catch (error) {
+            console.error(error)
+            toast.error("Error al exportar a Excel", { id: 'export-excel' })
+        } finally {
+            setLoadingExcel(false)
+        }
+    }
+
     const cargar = async (isSilent = false) => {
         if (!isSilent) setLoading(true)
         try {
@@ -215,6 +271,19 @@ export function Dashboard() {
                             <span className="font-syne text-sm font-bold text-[#4FD1C5]">{formatCOPCorto(stats.totalRecuperado)}</span>
                         </div>
                     </div>
+
+                    <button
+                        onClick={exportarMasivoExcel}
+                        disabled={loadingExcel}
+                        className={`h-[42px] px-6 rounded-full font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                            vistaPremium 
+                            ? 'text-white bg-emerald-600 hover:bg-emerald-500 border border-emerald-500/35 shadow-lg shadow-emerald-500/10' 
+                            : 'text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-500/20'
+                        }`}
+                    >
+                        <FileSpreadsheet size={16} />
+                        {loadingExcel ? "EXPORTANDO..." : "EXPORTAR EXCEL"}
+                    </button>
 
                     <button
                         onClick={imprimirMasivo}

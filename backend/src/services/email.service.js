@@ -693,3 +693,270 @@ export async function enviarRecordatorioPago({ email, nombreCompleto, numeroCuot
     console.log(`[EmailService][Recordatorio] ${email} | Cuota ${numeroCuota} | ${formatFecha(fechaVencimiento)} | ${formatCOP(montoCuota)}`)
     return { sent: false, method: 'fallback_log' }
 }
+
+/**
+ * Genera la plantilla de confirmación de desembolso en formato HTML.
+ */
+function generarTemplateDesembolsoHTML(nombreCompleto, montoDesembolsado, codigoPrestamo) {
+    const formatCOP = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n)
+    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/portal/login`
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmación de Desembolso — YAP</title>
+    <style>
+        body {
+            background-color: #060c1b;
+            color: #d1d5db;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 40px 10px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #0d1527;
+            border: 1px solid #1e2d4a;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+        }
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #00d4ff 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .logo-text {
+            color: #ffffff;
+            margin: 0;
+            font-size: 36px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        .logo-sub {
+            color: rgba(255, 255, 255, 0.85);
+            margin: 5px 0 0 0;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .welcome {
+            font-size: 22px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        .text {
+            line-height: 1.6;
+            margin-bottom: 30px;
+            font-size: 15px;
+            color: #a0aec0;
+        }
+        .highlight-box {
+            text-align: center;
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 30px;
+        }
+        .highlight-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #10b981;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        .highlight-value {
+            font-size: 44px;
+            font-weight: 950;
+            color: #ffffff;
+            line-height: 1;
+            margin: 0;
+            text-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+        }
+        .highlight-subtitle {
+            font-size: 12px;
+            color: #718096;
+            margin-top: 10px;
+            font-weight: 500;
+        }
+        .steps {
+            background-color: rgba(255, 255, 255, 0.02);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 18px;
+        }
+        .step-item:last-child {
+            margin-bottom: 0;
+        }
+        .step-num {
+            background-color: #1a6fff;
+            color: #ffffff;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .step-text {
+            font-size: 14px;
+            color: #cbd5e0;
+            line-height: 1.4;
+        }
+        .btn-portal {
+            display: inline-block;
+            background: linear-gradient(135deg, #1a6fff 0%, #00d4ff 100%);
+            color: #ffffff !important;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 16px 32px;
+            border-radius: 50px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(26, 111, 255, 0.35);
+            transition: all 0.3s;
+            margin: 10px auto 30px;
+        }
+        .footer {
+            background-color: #090e1a;
+            padding: 30px 20px;
+            text-align: center;
+            border-top: 1px solid #1e2d4a;
+            font-size: 11px;
+            color: #718096;
+        }
+        .footer p {
+            margin: 0 0 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="logo-text">YAP</h1>
+            <p class="logo-sub">Crédito Desembolsado</p>
+        </div>
+        <div class="content">
+            <h2 class="welcome">¡Buenas noticias, ${nombreCompleto}! 🎉</h2>
+            <p class="text">
+                Te informamos que tu solicitud de crédito por libranza con referencia <strong style="color:#ffffff">${codigoPrestamo}</strong> ha sido aprobada y el capital ha sido desembolsado exitosamente a tu cuenta bancaria.
+            </p>
+            
+            <div class="highlight-box">
+                <p class="highlight-title">Monto Desembolsado</p>
+                <p class="highlight-value">${formatCOP(montoDesembolsado)}</p>
+                <p class="highlight-subtitle">Transacción realizada de forma exitosa</p>
+            </div>
+
+            <h3 style="color: #ffffff; font-size: 16px; font-weight: 700; margin-bottom: 15px;">¿Cómo consultar tu plan de pagos?</h3>
+            <p class="text">
+                Puedes hacer seguimiento autónomo a tu préstamo, cuotas pagadas y fechas de vencimiento ingresando al Portal de Clientes.
+            </p>
+
+            <div style="text-align: center;">
+                <a href="${portalUrl}" class="btn-portal">Ingresar al Portal</a>
+            </div>
+
+            <div class="steps">
+                <h4 style="color: #ffffff; font-size: 14px; font-weight: 700; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Instrucciones para primer ingreso:</h4>
+                <div class="step-item">
+                    <div class="step-num">1</div>
+                    <div class="step-text">Ingresa tu número de <strong>Cédula de Ciudadanía</strong> tanto en el campo de <strong>Usuario</strong> como de <strong>Contraseña / PIN</strong>.</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">2</div>
+                    <div class="step-text">El sistema te guiará inmediatamente para definir un <strong>nuevo PIN personal de 4 dígitos</strong>.</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">3</div>
+                    <div class="step-text"><strong style="color:#10b981">¡Recuerda!</strong> Anota y guarda ese PIN de 4 dígitos en un lugar seguro para tus futuros ingresos.</div>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <p><strong>YAP S.A.S. — Créditos por Libranza</strong></p>
+            <p>Este es un correo automático. Por favor no lo respondas directamente si no lo requieres.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+}
+
+/**
+ * Envía la notificación de desembolso al cliente.
+ */
+export async function enviarConfirmacionDesembolso({ email, nombreCompleto, montoDesembolsado, codigoPrestamo }) {
+    const htmlContent = generarTemplateDesembolsoHTML(nombreCompleto, montoDesembolsado, codigoPrestamo)
+    const formatCOP = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n)
+
+    console.log(`[EmailService] Procesando correo de desembolso para: ${email} (Monto: ${formatCOP(montoDesembolsado)})`)
+
+    if (resend) {
+        try {
+            console.log('[EmailService] Enviando desembolso vía Resend API...')
+            await conReintentos(() => resend.emails.send({
+                from: EMAIL_FROM,
+                to: email,
+                ...(EMAIL_REPLY_TO ? { replyTo: EMAIL_REPLY_TO } : {}),
+                subject: `🎉 ¡Tu desembolso de ${formatCOP(montoDesembolsado)} está listo! — YAP`,
+                html: htmlContent,
+            }))
+            console.log('[EmailService] ✅ Correo de desembolso enviado exitosamente vía Resend!')
+            return { sent: true, method: 'resend' }
+        } catch (error) {
+            console.error('[EmailService] ❌ Falló envío de desembolso por Resend:', error.message)
+        }
+    }
+
+    // Fallback local
+    try {
+        const tempDir = path.join(__dirname, '../../temp_emails')
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true })
+        }
+        const safeName = nombreCompleto.toLowerCase().replace(/[^a-z0-9]/g, '_')
+        const filename = `desembolso_yap_${codigoPrestamo}_${safeName}.html`
+        const filePath = path.join(tempDir, filename)
+
+        fs.writeFileSync(filePath, htmlContent, 'utf-8')
+
+        console.log('\n=============================================================')
+        console.log('📬 [EMAIL SIMULATOR - CONFIRMACIÓN DESEMBOLSO]')
+        console.log(`Deudor: ${nombreCompleto}`)
+        console.log(`Destino: ${email}`)
+        console.log(`Préstamo: ${codigoPrestamo}`)
+        console.log(`Monto: ${formatCOP(montoDesembolsado)}`)
+        console.log(`Archivo de confirmación HTML generado:`)
+        console.log(`👉 file:///${filePath.replace(/\\/g, '/')}`)
+        console.log('=============================================================\n')
+
+        return { sent: true, method: 'fallback_file', path: filePath }
+    } catch (fsError) {
+        console.error('[EmailService] Error crítico al escribir confirmación local:', fsError.message)
+        return { sent: false, error: fsError.message }
+    }
+}

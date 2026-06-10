@@ -4,6 +4,7 @@ import { verificarToken, requiereRol } from '../middleware/auth.js'
 import { calcularPrestamo, validarTasaUsura } from '../services/financiero.service.js'
 import { validate, prestamoCrearSchema } from '../middleware/validate.js'
 import { registrarAccion } from '../services/audit.service.js'
+import { enviarConfirmacionDesembolso } from '../services/email.service.js'
 
 const router = Router()
 
@@ -379,6 +380,81 @@ router.delete('/:id', verificarToken, requiereRol(['superadmin']), async (req, r
         res.json({ mensaje: 'Préstamo eliminado de la base de datos' })
     } catch (error) {
         res.status(500).json({ error: 'Error al eliminar' })
+    }
+})
+
+// Desembolsar préstamo
+router.put('/:id/desembolsar', verificarToken, requiereRol(['superadmin', 'administrador']), async (req, res) => {
+    try {
+        const prestamoId = req.params.id
+
+        // 1. Buscar el préstamo con los datos del deudor
+        const prestamo = await prisma.prestamo.findUnique({
+            where: { id: prestamoId },
+            include: { persona: true }
+        })
+
+        if (!prestamo) {
+            return res.status(404).json({ error: 'Préstamo no encontrado' })
+        }
+
+        if (prestamo.desembolsado) {
+            return res.status(400).json({ error: 'El préstamo ya ha sido desembolsado' })
+        }
+
+        // Solo permitir desembolsar si el préstamo está aprobado (estado 'activo' o 'en_mora')
+        if (!['activo', 'en_mora'].includes(prestamo.estado)) {
+            return res.status(400).json({ error: 'Solo se pueden desembolsar préstamos en estado activo o en mora' })
+        }
+
+        // 2. Actualizar el préstamo como desembolsado
+        const prestamoActualizado = await prisma.prestamo.update({
+            where: { id: prestamoId },
+            data: {
+                desembolsado: true,
+                fecha_desembolso: new Date()
+            },
+            include: { persona: true }
+        })
+
+        // 3. Registrar acción en auditoría
+        await registrarAccion({
+            usuarioId: req.usuario.id,
+            usuarioNom: req.usuario.nombre,
+            accion: 'DESEMBOLSAR_PRESTAMO',
+            entidad: 'Prestamo',
+            entidadId: prestamoActualizado.id,
+            detalles: {
+                codigo: prestamoActualizado.codigo,
+                monto: prestamoActualizado.monto_otorgado,
+                persona_id: prestamoActualizado.persona_id
+            }
+        })
+
+        // 4. Enviar notificación por correo
+        if (prestamoActualizado.persona && prestamoActualizado.persona.correo) {
+            const num = prestamoActualizado.numero_prestamo || 0
+            const codigo = prestamoActualizado.codigo || `LYAP${String(num).padStart(5, '0')}`
+            const nombreCompleto = `${prestamoActualizado.persona.primer_nombre}${prestamoActualizado.persona.segundo_nombre ? ' ' + prestamoActualizado.persona.segundo_nombre : ''} ${prestamoActualizado.persona.primer_apellido}${prestamoActualizado.persona.segundo_apellido ? ' ' + prestamoActualizado.persona.segundo_apellido : ''}`
+            
+            // Disparar envío asíncrono para no bloquear la respuesta HTTP
+            enviarConfirmacionDesembolso({
+                email: prestamoActualizado.persona.correo,
+                nombreCompleto,
+                montoDesembolsado: prestamoActualizado.monto_otorgado,
+                codigoPrestamo: codigo
+            }).catch(err => {
+                console.error('[prestamos/desembolsar] Error enviando correo de confirmación:', err)
+            })
+        }
+
+        res.json({
+            mensaje: 'Préstamo desembolsado correctamente',
+            prestamo: addCodigo(prestamoActualizado)
+        })
+    } catch (error) {
+        console.error('[prestamos/desembolsar] Error al desembolsar:', error)
+        res.status(500).json({ error: 'Error al desembolsar el préstamo' })
     }
 })
 

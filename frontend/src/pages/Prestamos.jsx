@@ -20,6 +20,23 @@ export function Prestamos() {
     const location = useLocation()
     const [prestamos, setPrestamos] = useState([])
     const [cargando, setCargando] = useState(true)
+    const [confirmarDesembolsoPrestamo, setConfirmarDesembolsoPrestamo] = useState(null)
+    const [desembolsando, setDesembolsando] = useState(false)
+
+    const ejecutarDesembolso = async (id) => {
+        setDesembolsando(true)
+        try {
+            await api.put(`/prestamos/${id}/desembolsar`)
+            toast.success('Préstamo desembolsado y correo enviado con éxito')
+            setConfirmarDesembolsoPrestamo(null)
+            cargar()
+        } catch (e) {
+            console.error(e)
+            toast.error(e.response?.data?.error || 'Error al procesar el desembolso')
+        } finally {
+            setDesembolsando(false)
+        }
+    }
 
     const [modalOpen, setModalOpen] = useState(false)
     const [prestamoImprimir, setPrestamoImprimir] = useState(null)
@@ -211,8 +228,31 @@ export function Prestamos() {
                                             <td className="py-3.5 px-4 text-sm text-[var(--texto-2)]">{p.tipo?.nombre}</td>
                                             <td className="py-3.5 px-4 text-sm text-white text-right font-medium">{formatCOP(p.monto_otorgado)}</td>
                                             <td className="py-3.5 px-4 text-sm text-[#4FD1C5] text-right font-black number-font">{formatCOP(p.total_a_pagar)}</td>
-                                            <td className="py-3.5 px-4 text-sm"><BadgeEstado estado={p.estado} /></td>
+                                            <td className="py-3.5 px-4 text-sm">
+                                                <div className="flex flex-col gap-1">
+                                                    <BadgeEstado estado={p.estado} />
+                                                    {['activo', 'en_mora'].includes(p.estado) && (
+                                                        <span className={`text-[10px] font-bold inline-flex items-center gap-1 px-2 py-0.5 rounded-md w-fit ${
+                                                            p.desembolsado 
+                                                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                                                : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                                        }`}>
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${p.desembolsado ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                                                            {p.desembolsado ? 'Desembolsado' : 'Pendiente Desembolso'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className="py-3.5 px-4 text-sm text-right flex justify-end gap-2">
+                                                {['activo', 'en_mora'].includes(p.estado) && !p.desembolsado && (
+                                                    <button
+                                                        onClick={() => setConfirmarDesembolsoPrestamo(p)}
+                                                        className="p-1.5 text-[var(--texto-3)] hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                                                        title="Confirmar Desembolso"
+                                                    >
+                                                        <Check size={16} />
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => imprimirContrato(p.id)}
                                                     className="p-1.5 text-[var(--texto-3)] hover:text-[#4FD1C5] hover:bg-[rgba(79,209,197,0.1)] rounded-lg transition-colors"
@@ -251,6 +291,40 @@ export function Prestamos() {
 
             {detalleOpen && prestamoDetalle && (
                 <ModalDetalle prestamo={prestamoDetalle} onClose={() => setDetalleOpen(false)} />
+            )}
+
+            {confirmarDesembolsoPrestamo && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-[var(--fondo-card)] border border-[var(--borde)] rounded-2xl p-8 max-w-md w-full shadow-2xl">
+                        <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4 animate-bounce">
+                            <Check size={24} className="text-emerald-400" />
+                        </div>
+                        <h3 className="text-white font-bold text-lg text-center mb-2 font-syne">¿Confirmar Desembolso?</h3>
+                        <p className="text-[var(--texto-3)] text-sm text-center mb-6 leading-relaxed">
+                            Se registrará el desembolso para el préstamo <strong className="text-white font-mono">{confirmarDesembolsoPrestamo.codigo || `#${confirmarDesembolsoPrestamo.id.slice(0, 8)}`}</strong> por valor de <strong className="text-[#4FD1C5] font-black">{formatCOP(confirmarDesembolsoPrestamo.monto_otorgado)}</strong> a favor de <strong className="text-white">{confirmarDesembolsoPrestamo.persona?.primer_nombre} {confirmarDesembolsoPrestamo.persona?.primer_apellido}</strong>.
+                            <br /><br />
+                            Se enviará un correo automático de bienvenida al deudor con sus credenciales de acceso.
+                        </p>
+                        <div className="flex gap-3">
+                            <button 
+                                disabled={desembolsando}
+                                onClick={() => setConfirmarDesembolsoPrestamo(null)} 
+                                className="flex-1 py-2.5 border border-[var(--borde)] text-[var(--texto-3)] hover:text-white rounded-xl font-bold transition-all disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                disabled={desembolsando}
+                                onClick={() => ejecutarDesembolso(confirmarDesembolsoPrestamo.id)} 
+                                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 disabled:opacity-50"
+                            >
+                                {desembolsando ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : 'Desembolsar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </>
     )
@@ -1056,8 +1130,25 @@ function ModalDetalle({ prestamo, onClose }) {
                         <h2 className="text-xl font-bold text-[var(--texto-1)] uppercase">{persona?.primer_nombre} {persona?.primer_apellido}</h2>
                         <p className="text-sm text-[var(--cyan)] font-mono font-bold tracking-widest">{prestamo.codigo || '#SIN_CODIGO'}</p>
                     </div>
-                    <div className="ml-auto">
+                    <div className="ml-auto flex flex-col items-end gap-1.5">
                         <BadgeEstado estado={prestamo.estado} />
+                        {['activo', 'en_mora'].includes(prestamo.estado) && (
+                            <div className="flex flex-col items-end gap-1">
+                                <span className={`text-[10px] font-bold inline-flex items-center gap-1 px-2.5 py-1 rounded-md border ${
+                                    prestamo.desembolsado 
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                }`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${prestamo.desembolsado ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                                    {prestamo.desembolsado ? 'Desembolsado' : 'Pendiente Desembolso'}
+                                </span>
+                                {prestamo.desembolsado && prestamo.fecha_desembolso && (
+                                    <span className="text-[10px] text-[var(--texto-3)] font-mono">
+                                        Desembolsado: {formatFechaCorta(prestamo.fecha_desembolso)}
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 

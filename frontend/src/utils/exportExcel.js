@@ -65,15 +65,22 @@ export function exportToExcel({
     // ── Construcción del sheet ─────────────────────────────────────────────────
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
 
-    // Ancho de columnas
-    ws['!cols'] = [
-        { wch: 30 },
-        { wch: 25 },
-        { wch: 20 },
-        { wch: 20 },
-        { wch: 20 },
-        { wch: 20 },
-    ];
+    // Calcular el ancho de las columnas de forma dinámica
+    const maxCols = ws_data.reduce((max, row) => Math.max(max, row.length), 0);
+    const colWidths = Array.from({ length: maxCols }, () => ({ wch: 12 })); // ancho base de 12
+
+    ws_data.forEach(row => {
+        row.forEach((val, colIdx) => {
+            if (val !== null && val !== undefined && val !== '') {
+                const len = String(val).length;
+                if (len > colWidths[colIdx].wch) {
+                    colWidths[colIdx].wch = Math.min(50, len + 3); // Capped at 50 chars, with 3 padding spaces
+                }
+            }
+        });
+    });
+
+    ws['!cols'] = colWidths;
 
     XLSX.utils.book_append_sheet(wb, ws, 'Reporte YAP');
 
