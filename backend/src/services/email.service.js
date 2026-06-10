@@ -259,6 +259,7 @@ export async function enviarConfirmacionRegistro({ email, nombreCompleto, numero
 
     console.log(`[EmailService] Procesando correo para: ${email} (Turno #${numeroTurno})`)
 
+    let resendError = null
     // Caso 1: Intentar con Resend API (con 3 reintentos automáticos)
     if (resend) {
         try {
@@ -273,6 +274,7 @@ export async function enviarConfirmacionRegistro({ email, nombreCompleto, numero
             console.log('[EmailService] ✅ Correo enviado exitosamente vía Resend!')
             return { sent: true, method: 'resend' }
         } catch (error) {
+            resendError = error.message
             console.error('[EmailService] ❌ Falló envío por Resend (3 intentos agotados):', error.message)
             // Procedemos al fallback local
         }
@@ -301,7 +303,7 @@ export async function enviarConfirmacionRegistro({ email, nombreCompleto, numero
         console.log(`👉 file:///${filePath.replace(/\\/g, '/')}`)
         console.log('=============================================================\n')
 
-        return { sent: true, method: 'fallback_file', path: filePath }
+        return { sent: true, method: 'fallback_file', path: filePath, resendAttempted: !!resend, resendError }
     } catch (fsError) {
         console.error('[EmailService] Error crítico al escribir el archivo de simulación local:', fsError.message)
         return { sent: false, error: fsError.message }
@@ -915,6 +917,7 @@ export async function enviarConfirmacionDesembolso({ email, nombreCompleto, mont
 
     console.log(`[EmailService] Procesando correo de desembolso para: ${email} (Monto: ${formatCOP(montoDesembolsado)})`)
 
+    let resendError = null
     if (resend) {
         try {
             console.log('[EmailService] Enviando desembolso vía Resend API...')
@@ -928,6 +931,7 @@ export async function enviarConfirmacionDesembolso({ email, nombreCompleto, mont
             console.log('[EmailService] ✅ Correo de desembolso enviado exitosamente vía Resend!')
             return { sent: true, method: 'resend' }
         } catch (error) {
+            resendError = error.message
             console.error('[EmailService] ❌ Falló envío de desembolso por Resend:', error.message)
         }
     }
@@ -954,7 +958,7 @@ export async function enviarConfirmacionDesembolso({ email, nombreCompleto, mont
         console.log(`👉 file:///${filePath.replace(/\\/g, '/')}`)
         console.log('=============================================================\n')
 
-        return { sent: true, method: 'fallback_file', path: filePath }
+        return { sent: true, method: 'fallback_file', path: filePath, resendAttempted: !!resend, resendError }
     } catch (fsError) {
         console.error('[EmailService] Error crítico al escribir confirmación local:', fsError.message)
         return { sent: false, error: fsError.message }

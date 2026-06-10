@@ -247,10 +247,11 @@ export function Prestamos() {
                                                 {['activo', 'en_mora'].includes(p.estado) && !p.desembolsado && (
                                                     <button
                                                         onClick={() => setConfirmarDesembolsoPrestamo(p)}
-                                                        className="p-1.5 text-[var(--texto-3)] hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                                                        className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 hover:bg-emerald-500/20 text-amber-400 hover:text-emerald-400 border border-amber-500/20 hover:border-emerald-500/30 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-300 shadow-sm"
                                                         title="Confirmar Desembolso"
                                                     >
-                                                        <Check size={16} />
+                                                        <Check size={12} className="stroke-[3]" />
+                                                        <span>Desembolsar</span>
                                                     </button>
                                                 )}
                                                 <button

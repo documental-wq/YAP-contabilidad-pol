@@ -154,9 +154,11 @@ router.post('/test-email', verificarToken, async (req, res) => {
         })
 
         res.json({
-            mensaje: resultado.sent
-                ? `✅ Correo de prueba enviado exitosamente a ${emailDestino}`
-                : `📋 Correo simulado (sin RESEND_API_KEY). Revisar carpeta temp_emails/ en el servidor.`,
+            mensaje: resultado.resendError
+                ? `⚠️ Error al intentar enviar con Resend: ${resultado.resendError}. Se generó copia simulada.`
+                : resultado.sent
+                    ? `✅ Correo de prueba enviado exitosamente a ${emailDestino}`
+                    : `📋 Correo simulado (sin RESEND_API_KEY). Revisar carpeta temp_emails/ en el servidor.`,
             ...resultado,
             destino: emailDestino
         })
