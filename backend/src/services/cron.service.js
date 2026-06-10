@@ -73,43 +73,55 @@ export const iniciarCronJobs = () => {
             const en7Dias = new Date(hoy)
             en7Dias.setDate(hoy.getDate() + 7)
 
-            const proximasAVencer = await prisma.cuotaProgramada.findMany({
-                where: {
-                    estado: 'pendiente',
-                    fecha_programada: { gte: hoy, lte: en7Dias }
-                },
-                include: { persona: true, prestamo: { include: { tipo: true } } }
-            })
-
-            console.log(`[CRON] ${proximasAVencer.length} cuotas vencen en los próximos 7 días.`)
-
-            // Enviar recordatorio por email a cada deudor en lotes paralelos de 10
-            // (evita 200 llamadas HTTP secuenciales a Resend)
-            const CHUNK_SIZE = 10
+            let skip = 0
+            const take = 500
+            let totalEncontrados = 0
             let enviados = 0
-            for (let i = 0; i < proximasAVencer.length; i += CHUNK_SIZE) {
-                const chunk = proximasAVencer.slice(i, i + CHUNK_SIZE)
-                const resultados = await Promise.allSettled(
-                    chunk
-                        .filter(cuota => cuota.persona?.correo)
-                        .map(cuota => enviarRecordatorioPago({
-                            email: cuota.persona.correo,
-                            nombreCompleto: `${cuota.persona.primer_nombre} ${cuota.persona.primer_apellido}`,
-                            numeroCuota: cuota.numero_cuota,
-                            montoCuota: cuota.cuota_total,
-                            fechaVencimiento: cuota.fecha_programada,
-                            tipoPrestamo: cuota.prestamo?.tipo?.nombre ?? 'Libranza'
-                        }))
-                )
-                resultados.forEach((r, idx) => {
-                    if (r.status === 'fulfilled') {
-                        enviados++
-                    } else {
-                        console.warn(`[CRON] Recordatorio fallido (chunk ${i}, idx ${idx}):`, r.reason?.message)
-                    }
+
+            do {
+                const proximasAVencer = await prisma.cuotaProgramada.findMany({
+                    where: {
+                        estado: 'pendiente',
+                        fecha_programada: { gte: hoy, lte: en7Dias }
+                    },
+                    include: { persona: true, prestamo: { include: { tipo: true } } },
+                    skip,
+                    take
                 })
-            }
-            console.log(`[CRON] Recordatorios enviados: ${enviados}/${proximasAVencer.length}`)
+
+                if (proximasAVencer.length === 0) break
+                totalEncontrados += proximasAVencer.length
+
+                // Enviar recordatorio por email a cada deudor en lotes paralelos de 10
+                // (evita 200 llamadas HTTP secuenciales a Resend)
+                const CHUNK_SIZE = 10
+                for (let i = 0; i < proximasAVencer.length; i += CHUNK_SIZE) {
+                    const chunk = proximasAVencer.slice(i, i + CHUNK_SIZE)
+                    const resultados = await Promise.allSettled(
+                        chunk
+                            .filter(cuota => cuota.persona?.correo)
+                            .map(cuota => enviarRecordatorioPago({
+                                email: cuota.persona.correo,
+                                nombreCompleto: `${cuota.persona.primer_nombre} ${cuota.persona.primer_apellido}`,
+                                numeroCuota: cuota.numero_cuota,
+                                montoCuota: cuota.cuota_total,
+                                fechaVencimiento: cuota.fecha_programada,
+                                tipoPrestamo: cuota.prestamo?.tipo?.nombre ?? 'Libranza'
+                            }))
+                    )
+                    resultados.forEach((r, idx) => {
+                        if (r.status === 'fulfilled') {
+                            enviados++
+                        } else {
+                            console.warn(`[CRON] Recordatorio fallido (chunk ${i}, idx ${idx}):`, r.reason?.message)
+                        }
+                    })
+                }
+
+                skip += take
+            } while (true)
+
+            console.log(`[CRON] Recordatorios enviados: ${enviados}/${totalEncontrados}`)
         } catch (err) {
             console.error('[CRON] Error en recordatorios:', err)
         }

@@ -136,8 +136,7 @@ export const usuarioSchema = z.object({
     password: z.string()
         .min(8, 'La contraseña debe tener mínimo 8 caracteres.')
         .regex(/[A-Z]/, 'Debe incluir al menos una letra mayúscula.')
-        .regex(/[0-9]/, 'Debe incluir al menos un número.')
-        .optional(),
+        .regex(/[0-9]/, 'Debe incluir al menos un número.'),
     rol: z.enum(['administrador', 'superadmin', 'analista', 'cobrador', 'operador']).optional().default('administrador'),
     estado: z.any().optional()
 })

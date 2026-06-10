@@ -1,10 +1,10 @@
-﻿import { Router } from 'express'
+import { Router } from 'express'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { prisma } from '../lib/prisma.js'
 import { verificarTokenCliente } from '../middleware/clienteAuth.js'
 import { jwtSecret } from '../middleware/auth.js'
-import { descifrarPersona } from '../services/crypto.service.js'
+import { descifrarPersona, generarHash } from '../services/crypto.service.js'
 
 const router = Router()
 
@@ -21,9 +21,9 @@ router.post('/auth/login', async (req, res) => {
             return res.status(400).json({ error: 'La cédula y la contraseña/PIN son obligatorios.' })
         }
 
-        // Buscar a la persona por su Cédula
+        // Buscar a la persona por su Cédula (usando hash determinístico)
         const persona = await prisma.persona.findUnique({
-            where: { cedula }
+            where: { cedula_hash: generarHash(cedula) }
         })
 
         if (!persona || persona.estado !== 'activo') {

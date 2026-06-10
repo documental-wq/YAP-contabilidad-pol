@@ -13,7 +13,8 @@ import {
     descifrar,
     cifrarPersona,
     descifrarPersona,
-    descifrarPersonas
+    descifrarPersonas,
+    generarHash
 } from '../crypto.service.js'
 
 describe('crypto.service — cifrar / descifrar', () => {
@@ -73,6 +74,15 @@ describe('crypto.service — cifrar / descifrar', () => {
         expect(partes[0]).toHaveLength(24)
         expect(partes[1]).toHaveLength(32)
     })
+
+    it('debe lanzar un error si el ciphertext tiene 3 partes pero está alterado o corrupto', () => {
+        const cifrado = cifrar('secreto')
+        const partes = cifrado.split(':')
+        // Alterar el ciphertext (parte 2)
+        partes[2] = partes[2].slice(0, -2) + '00'
+        const alterado = partes.join(':')
+        expect(() => descifrar(alterado)).toThrow('Error al descifrar datos (firma o clave inválida)')
+    })
 })
 
 describe('crypto.service — cifrarPersona / descifrarPersona', () => {
@@ -93,15 +103,18 @@ describe('crypto.service — cifrarPersona / descifrarPersona', () => {
         const cifrada = cifrarPersona(personaPlana)
 
         // PII debe estar cifrado (distinto al original)
+        expect(cifrada.cedula).not.toBe(personaPlana.cedula)
         expect(cifrada.telefono).not.toBe(personaPlana.telefono)
         expect(cifrada.telefono2).not.toBe(personaPlana.telefono2)
         expect(cifrada.celular).not.toBe(personaPlana.celular)
         expect(cifrada.correo).not.toBe(personaPlana.correo)
 
+        // Hash determinístico generado
+        expect(cifrada.cedula_hash).toBe(generarHash(personaPlana.cedula))
+
         // Non-PII debe permanecer igual
         expect(cifrada.id).toBe(personaPlana.id)
         expect(cifrada.primer_nombre).toBe(personaPlana.primer_nombre)
-        expect(cifrada.cedula).toBe(personaPlana.cedula)
         expect(cifrada.estado).toBe(personaPlana.estado)
     })
 

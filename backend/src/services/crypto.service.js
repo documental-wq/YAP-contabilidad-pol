@@ -44,6 +44,18 @@ function obtenerLlave() {
 }
 
 /**
+ * Genera el hash SHA-256 determinístico de un texto.
+ * Utilizado para indexación y unicidad en la base de datos sin exponer el dato.
+ * 
+ * @param {string|null|undefined} texto - El texto a hashear
+ * @returns {string|null} - El hash hexadecimal de 64 caracteres
+ */
+export function generarHash(texto) {
+    if (texto === null || texto === undefined || texto === '') return texto
+    return crypto.createHash('sha256').update(String(texto).trim()).digest('hex')
+}
+
+/**
  * Cifra un string de texto plano usando AES-256-GCM.
  * El resultado es un string en formato: iv:authTag:ciphertext (todo en hex)
  * 
@@ -92,7 +104,7 @@ export function descifrar(textoCifrado) {
         return descifradoBuf.toString('utf8')
     } catch (err) {
         console.error('[CryptoService] Error al descifrar (posiblemente datos corruptos o llave incorrecta):', err.message)
-        return textoCifrado // Devuelve el valor original para no bloquear el sistema
+        throw new Error('Error al descifrar datos (firma o clave inválida)')
     }
 }
 
@@ -106,6 +118,8 @@ export function descifrar(textoCifrado) {
 export function cifrarPersona(persona) {
     return {
         ...persona,
+        cedula:          cifrar(persona.cedula),
+        cedula_hash:     generarHash(persona.cedula),
         telefono:        cifrar(persona.telefono),
         telefono2:       cifrar(persona.telefono2),
         celular:         cifrar(persona.celular),
@@ -124,6 +138,7 @@ export function descifrarPersona(persona) {
     if (!persona) return persona
     return {
         ...persona,
+        cedula:          descifrar(persona.cedula),
         telefono:        descifrar(persona.telefono),
         telefono2:       descifrar(persona.telefono2),
         celular:         descifrar(persona.celular),

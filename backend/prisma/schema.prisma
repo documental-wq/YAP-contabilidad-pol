@@ -107,7 +107,8 @@ model Persona {
   segundo_nombre   String?
   primer_apellido  String
   segundo_apellido String?
-  cedula           String            @unique
+  cedula           String
+  cedula_hash      String?           @unique
   telefono         String?
   telefono2        String?
   celular          String?

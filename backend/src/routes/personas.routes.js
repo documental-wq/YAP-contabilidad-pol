@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { verificarToken, requiereRol } from '../middleware/auth.js'
 import { enviarConfirmacionRegistro } from '../services/email.service.js'
-import { cifrarPersona, descifrarPersona, descifrarPersonas } from '../services/crypto.service.js'
+import { cifrarPersona, descifrarPersona, descifrarPersonas, generarHash } from '../services/crypto.service.js'
 import { validate, personaSchema } from '../middleware/validate.js'
 import { registrarAccion } from '../services/audit.service.js'
 
@@ -19,10 +19,10 @@ router.get('/', verificarToken, async (req, res) => {
             ...(empresa_id && { empresa_id }),
             ...(q && {
                 OR: [
-                    { primer_nombre: { contains: q } },
-                    { primer_apellido: { contains: q } },
-                    { segundo_nombre: { contains: q } },
-                    { cedula: { contains: q } }
+                    { primer_nombre: { contains: q, mode: 'insensitive' } },
+                    { primer_apellido: { contains: q, mode: 'insensitive' } },
+                    { segundo_nombre: { contains: q, mode: 'insensitive' } },
+                    { cedula_hash: generarHash(q) }
                 ]
             })
         }
@@ -65,9 +65,9 @@ router.get('/buscar', verificarToken, async (req, res) => {
                 empresa_id ? { empresa_id } : {},
                 q ? {
                     OR: [
-                        { primer_nombre: { contains: q } },
-                        { primer_apellido: { contains: q } },
-                        { cedula: { contains: q } }
+                        { primer_nombre: { contains: q, mode: 'insensitive' } },
+                        { primer_apellido: { contains: q, mode: 'insensitive' } },
+                        { cedula_hash: generarHash(q) }
                     ]
                 } : {}
             ]
@@ -110,7 +110,7 @@ router.post('/', verificarToken, requiereRol(['superadmin', 'administrador']), v
         data.creado_por = req.usuario.id
 
         // Validar cédula única
-        const existe = await prisma.persona.findUnique({ where: { cedula: data.cedula } })
+        const existe = await prisma.persona.findUnique({ where: { cedula_hash: generarHash(data.cedula) } })
         if (existe) return res.status(400).json({ error: 'La cédula ya está registrada.' })
 
         // Obtener el número en la fila ANTES de crear (total actual + 1)

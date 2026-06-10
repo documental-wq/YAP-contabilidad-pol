@@ -7,6 +7,7 @@ import { validate, pagoCrearSchema } from '../middleware/validate.js'
 import { registrarAccion } from '../services/audit.service.js'
 import crypto from 'crypto'
 import { procesarPagoCuota } from '../services/pagos.service.js'
+import { generarHash } from '../services/crypto.service.js'
 
 // Usando mismo truncamiento de finanzas
 const redondear2 = (n) => new Decimal(n).toDecimalPlaces(2).toNumber()
@@ -129,7 +130,7 @@ router.post('/masivo', verificarToken, requiereRol(['superadmin', 'administrador
                 // 1. Buscar persona por Cédula de forma exacta en la empresa
                 persona = await prisma.persona.findFirst({
                     where: {
-                        cedula: item.cedula,
+                        cedula_hash: generarHash(item.cedula),
                         empresa_id: empresa_id
                     },
                     include: {

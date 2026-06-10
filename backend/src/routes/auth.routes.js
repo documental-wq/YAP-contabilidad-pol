@@ -76,8 +76,8 @@ router.post('/login', loginLimiter, validate(loginSchema), async (req, res) => {
 // Renovar access token — lee el refreshToken desde cookie httpOnly
 router.post('/refresh', async (req, res) => {
     try {
-        // Leer de cookie (seguro) con fallback al body para compatibilidad offline/dev
-        const refreshToken = req.cookies?.yap_refresh || req.body?.refreshToken
+        // Leer de cookie (seguro)
+        const refreshToken = req.cookies?.yap_refresh
         if (!refreshToken) {
             return res.status(400).json({ error: 'Se requiere el refreshToken.' })
         }
@@ -112,7 +112,7 @@ router.post('/refresh', async (req, res) => {
 // Cerrar sesión — revoca token en BD y borra la cookie
 router.post('/logout', async (req, res) => {
     try {
-        const refreshToken = req.cookies?.yap_refresh || req.body?.refreshToken
+        const refreshToken = req.cookies?.yap_refresh
         if (refreshToken) await revocarRefreshToken(refreshToken)
         res.clearCookie('yap_refresh', { path: '/api/auth' })
         res.json({ mensaje: 'Sesión terminada exitosamente.' })
