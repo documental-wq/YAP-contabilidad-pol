@@ -1,10 +1,15 @@
-﻿import { Router } from 'express'
+import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
-import { verificarToken } from '../middleware/auth.js'
+import { verificarToken, requiereRol } from '../middleware/auth.js'
 import Decimal from 'decimal.js'
 import { descifrarPersona, descifrarPersonas } from '../services/crypto.service.js'
+import { createCache } from '../lib/cache.js'
 
 const router = Router()
+
+// ── Caché de 60 segundos para KPIs del dashboard ─────────────────────────────
+// Evita 6+ queries pesadas por cada apertura del dashboard o pestaña nueva.
+const statsCache = createCache(60_000)
 
 // Endpoint de notificaciones en tiempo real para solicitudes pendientes y créditos por aprobar
 router.get('/notificaciones', verificarToken, async (req, res) => {
@@ -46,41 +51,16 @@ router.get('/notificaciones', verificarToken, async (req, res) => {
     }
 })
 
+// ── GET /api/stats — Solo lectura (sin side-effects) ─────────────────────────
+// La detección y actualización de mora está en el cron de las 7 AM (cron.service.js).
+// Si necesitas forzar la sincronización manualmente usa: POST /api/stats/sincronizar-mora
 router.get('/', verificarToken, async (req, res) => {
     try {
+        // Intentar responder desde caché (válido 60 segundos)
+        const cached = statsCache.get('dashboard')
+        if (cached) return res.json(cached)
+
         const hoy = new Date()
-
-        // --- DETECCIÓN DE MORA EN TIEMPO REAL ---
-        // Actualizamos cuotas pendientes de préstamos activos o ya en mora
-        const cuotasVencidasNow = await prisma.cuotaProgramada.findMany({
-            where: {
-                estado: 'pendiente',
-                fecha_programada: { lt: hoy },
-                // Cuotas de préstamos activos o en mora (no cancelados)
-                prestamo: { estado: { in: ['activo', 'en_mora'] } }
-            },
-            include: { prestamo: true }
-        })
-
-        if (cuotasVencidasNow.length > 0) {
-            // Actualizamos cuotas a vencidas
-            const updateCuotas = cuotasVencidasNow.map(c =>
-                prisma.cuotaProgramada.update({ where: { id: c.id }, data: { estado: 'vencida' } })
-            )
-            // Actualizamos préstamos a en_mora (solo si su estado actual en la base de datos es 'activo')
-            const prestamoIdsAfectados = [...new Set(
-                cuotasVencidasNow
-                    .filter(c => c.prestamo && c.prestamo.estado === 'activo')
-                    .map(c => c.prestamo_id)
-            )]
-            const updatePrestamos = prestamoIdsAfectados.map(pid =>
-                prisma.prestamo.update({
-                    where: { id: pid },
-                    data: { estado: 'en_mora' }
-                })
-            )
-            await prisma.$transaction([...updateCuotas, ...updatePrestamos])
-        }
 
         // --- CÁLCULO DE ESTADÍSTICAS ---
         const [personasCount, prestamos, cuotasEnMoraAgg, pagosAgg] = await Promise.all([
@@ -146,7 +126,7 @@ router.get('/', verificarToken, async (req, res) => {
             fullMark: maxCount
         }))
 
-        res.json({
+        const resultado = {
             stats: {
                 usuarios: personasCount,
                 prestamosActivos: prestamos.length,
@@ -157,10 +137,65 @@ router.get('/', verificarToken, async (req, res) => {
             },
             dataEvolucion,
             dataRadar
-        })
+        }
+
+        statsCache.set('dashboard', resultado)
+        res.json(resultado)
     } catch (error) {
         console.error('Error al obtener estadísticas:', error)
         res.status(500).json({ error: 'Error al obtener estadísticas' })
+    }
+})
+
+// ── POST /api/stats/sincronizar-mora — Detección manual de mora en tiempo real ─
+// Separado del GET para respetar principio REST (GET no debe tener side-effects).
+// Solo accesible por administradores; el dashboard puede llamarlo explícitamente.
+router.post('/sincronizar-mora', verificarToken, requiereRol(['superadmin', 'administrador']), async (req, res) => {
+    try {
+        const hoy = new Date()
+
+        const cuotasVencidasNow = await prisma.cuotaProgramada.findMany({
+            where: {
+                estado: 'pendiente',
+                fecha_programada: { lt: hoy },
+                prestamo: { estado: { in: ['activo', 'en_mora'] } }
+            },
+            include: { prestamo: true }
+        })
+
+        if (cuotasVencidasNow.length === 0) {
+            statsCache.invalidate('dashboard')
+            return res.json({ actualizadas: 0, enMora: 0, mensaje: 'Sin cuotas vencidas pendientes.' })
+        }
+
+        // Actualizar cuotas y préstamos en una sola transacción
+        const updateCuotas = cuotasVencidasNow.map(c =>
+            prisma.cuotaProgramada.update({ where: { id: c.id }, data: { estado: 'vencida' } })
+        )
+        const prestamoIdsAfectados = [...new Set(
+            cuotasVencidasNow
+                .filter(c => c.prestamo && c.prestamo.estado === 'activo')
+                .map(c => c.prestamo_id)
+        )]
+        const updatePrestamos = prestamoIdsAfectados.map(pid =>
+            prisma.prestamo.update({
+                where: { id: pid },
+                data: { estado: 'en_mora' }
+            })
+        )
+        await prisma.$transaction([...updateCuotas, ...updatePrestamos])
+
+        // Invalidar caché para que el próximo GET refleje los nuevos estados
+        statsCache.invalidate('dashboard')
+
+        res.json({
+            actualizadas: cuotasVencidasNow.length,
+            enMora: prestamoIdsAfectados.length,
+            mensaje: `${cuotasVencidasNow.length} cuotas marcadas como vencidas. ${prestamoIdsAfectados.length} préstamos pasaron a en_mora.`
+        })
+    } catch (error) {
+        console.error('Error al sincronizar mora:', error)
+        res.status(500).json({ error: 'Error al sincronizar mora' })
     }
 })
 

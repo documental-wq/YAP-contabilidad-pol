@@ -36,8 +36,9 @@ export const generarTokens = async (usuario) => {
 }
 
 /**
- * Renueva el access token usando un refresh token válido
- * Retorna null si el refresh token es inválido o expiró
+ * Renueva el access token usando un refresh token válido.
+ * Implementa Refresh Token Rotation: el token usado se invalida y se emite uno nuevo.
+ * Retorna null si el refresh token es inválido o expiró.
  */
 export const renovarAccessToken = async (refreshTokenValue) => {
     if (!refreshTokenValue) return null
@@ -55,7 +56,23 @@ export const renovarAccessToken = async (refreshTokenValue) => {
     }
     if (!stored.usuario || stored.usuario.estado !== 'activo') return null
 
-    // Generar nuevo access token
+    // ── Refresh Token Rotation ────────────────────────────────────────────────
+    // 1. Revocar el token actual (uso único)
+    await prisma.refreshToken.delete({ where: { id: stored.id } })
+
+    // 2. Emitir nuevo refresh token
+    const newRefreshTokenValue = crypto.randomBytes(64).toString('hex')
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY)
+    await prisma.refreshToken.create({
+        data: {
+            token: newRefreshTokenValue,
+            usuario_id: stored.usuario.id,
+            expires_at: expiresAt
+        }
+    })
+
+    // 3. Emitir nuevo access token
     const accessToken = jwt.sign(
         { id: stored.usuario.id, rol: stored.usuario.rol },
         jwtSecret,
@@ -63,7 +80,7 @@ export const renovarAccessToken = async (refreshTokenValue) => {
     )
 
     const { password, ...usuarioSinPass } = stored.usuario
-    return { accessToken, usuario: usuarioSinPass }
+    return { accessToken, newRefreshToken: newRefreshTokenValue, usuario: usuarioSinPass }
 }
 
 /**

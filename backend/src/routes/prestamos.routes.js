@@ -119,6 +119,14 @@ router.post('/simular', verificarToken, async (req, res) => {
     try {
         const { monto, cuotas, fechaPrimerPago, tasas, metodoAmortizacion, diferirCargos } = req.body
 
+        // Validar tasa de usura antes de simular
+        if (tasas && tasas.length > 0) {
+            const usuraVal = validarTasaUsura(tasas)
+            if (usuraVal.excede) {
+                return res.status(400).json({ error: usuraVal.mensaje })
+            }
+        }
+
         // Tasas debe ser un array con el formato de la base de datos o similar para calcularPrestamo
         // El frontend enviará el objeto completo o overrides.
 
@@ -301,6 +309,7 @@ router.put('/:id/aprobar', verificarToken, requiereRol(['superadmin', 'administr
 
         res.json({ mensaje: 'Préstamo aprobado', prestamo })
     } catch (error) {
+        if (error.code === 'P2025') return res.status(404).json({ error: 'Préstamo no encontrado.' })
         res.status(500).json({ error: 'Error al aprobar' })
     }
 })
@@ -330,6 +339,7 @@ router.put('/:id/cancelar', verificarToken, requiereRol(['superadmin', 'administ
 
         res.json({ mensaje: 'Préstamo cancelado' })
     } catch (error) {
+        if (error.code === 'P2025') return res.status(404).json({ error: 'Préstamo no encontrado.' })
         res.status(500).json({ error: 'Error al cancelar' })
     }
 })

@@ -3,16 +3,42 @@ import { create } from 'zustand'
 // ── Seguridad de Tokens ───────────────────────────────────────────────────
 // El access token vive SOLO en memoria (esta variable de módulo).
 // El refresh token lo gestiona el backend como httpOnly cookie — JS NUNCA lo lee.
-// usuario se guarda en localStorage (no es sensible como un token de sesión).
+// usuario se guarda en localStorage con timestamp de expiración de 8 horas.
 let _accessToken = null
 
+// ── Helper: leer usuario con validación de expiración ────────────────────
+const leerUsuarioLocal = () => {
+    try {
+        const raw = localStorage.getItem('usuario')
+        if (!raw) return null
+        const parsed = JSON.parse(raw)
+        if (parsed._expiresAt && Date.now() > parsed._expiresAt) {
+            // Sesión de usuario expirada en localStorage — limpiar
+            localStorage.removeItem('usuario')
+            return null
+        }
+        const { _expiresAt, ...usuario } = parsed
+        return usuario
+    } catch {
+        return null
+    }
+}
+
+const guardarUsuarioLocal = (usuario) => {
+    const conExpiracion = {
+        ...usuario,
+        _expiresAt: Date.now() + 8 * 60 * 60 * 1000 // 8 horas
+    }
+    localStorage.setItem('usuario', JSON.stringify(conExpiracion))
+}
+
 export const useStore = create((set) => ({
-    usuario: JSON.parse(localStorage.getItem('usuario')) || null,
+    usuario: leerUsuarioLocal(),
     token: _accessToken, // En memoria, NO en localStorage
 
     login: (usuario, token) => {
         _accessToken = token
-        localStorage.setItem('usuario', JSON.stringify(usuario))
+        guardarUsuarioLocal(usuario)
         // refreshToken: gestionado exclusivamente por el backend en httpOnly cookie
         set({ usuario, token })
     },
@@ -20,7 +46,7 @@ export const useStore = create((set) => ({
     // Actualiza solo el access token (llamado por el interceptor de refresh)
     setToken: (token, usuario = null) => {
         _accessToken = token
-        if (usuario) localStorage.setItem('usuario', JSON.stringify(usuario))
+        if (usuario) guardarUsuarioLocal(usuario)
         set((state) => ({
             token,
             usuario: usuario || state.usuario
@@ -50,3 +76,4 @@ export const useStore = create((set) => ({
         atencionPendiente: Math.max(0, state.atencionPendiente - 1)
     }))
 }))
+

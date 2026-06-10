@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from './components/layout/Layout'
 import { PortalLayout } from './components/layout/PortalLayout'
+import { PrivateRoute } from './components/auth/PrivateRoute'
 import {
   Login,
   Dashboard,
@@ -31,8 +32,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/solicitar" element={<SolicitudPublica />} />
 
-        {/* Rutas Privadas con Layout */}
-        <Route path="/" element={<Layout />}>
+        {/* Rutas Privadas con Layout — protegidas por PrivateRoute */}
+        <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
           <Route index element={<Navigate to="/inicio" replace />} />
           <Route path="inicio" element={<Dashboard />} />
           <Route path="personas" element={<Personas />} />
@@ -61,7 +62,8 @@ function App() {
           <Route path="perfil" element={<PortalPerfil />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Ruta 404 — página no encontrada */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   )

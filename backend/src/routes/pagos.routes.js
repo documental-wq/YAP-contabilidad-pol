@@ -52,7 +52,7 @@ router.get('/prestamo/:id', verificarToken, async (req, res) => {
 })
 
 // Registrar un Pago
-router.post('/', verificarToken, requiereRol(['superadmin', 'administrador']), validate(pagoCrearSchema), async (req, res) => {
+router.post('/', verificarToken, requiereRol(['superadmin', 'administrador', 'cobrador']), validate(pagoCrearSchema), async (req, res) => {
     try {
         const data = req.body
         // Expected: cuota_id, fecha_pago, monto_recibido, metodo_pago, numero_comprobante
@@ -381,7 +381,7 @@ router.post('/', verificarToken, requiereRol(['superadmin', 'administrador']), v
 })
 
 // REGISTRO MASIVO POR EMPRESA (DEDUCCIONES DE NÓMINA)
-router.post('/masivo', verificarToken, requiereRol(['superadmin', 'administrador']), async (req, res) => {
+router.post('/masivo', verificarToken, requiereRol(['superadmin', 'administrador', 'cobrador']), async (req, res) => {
     const { empresa_id, fecha_pago, metodo_pago, lineas } = req.body;
     // lineas: [{ cedula: string, nombre: string, monto: number }]
 

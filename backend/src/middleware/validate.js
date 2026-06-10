@@ -98,7 +98,7 @@ export const prestamoCrearSchema = z.object({
         es_cargo_unico: z.boolean().optional(),
         es_tasa_mora: z.boolean().optional(),
         es_interes_principal: z.boolean().optional(),
-        activa: z.boolean().optional(),
+        activa: z.boolean().optional().default(true),
         es_adhoc: z.boolean().optional(),
         guardado: z.boolean().optional(),
         orden: z.number().int().optional(),
@@ -132,7 +132,6 @@ export const empresaSchema = z.object({
 // ── Usuarios ──────────────────────────────────────────────────
 export const usuarioSchema = z.object({
     nombre: z.string().min(3, 'El nombre debe tener al menos 3 caracteres.').trim(),
-    email: z.string().email('El correo no es válido.').toLowerCase().trim().optional(),
     correo: z.string().email('El correo no es válido.').toLowerCase().trim().optional(),
     password: z.string()
         .min(8, 'La contraseña debe tener mínimo 8 caracteres.')

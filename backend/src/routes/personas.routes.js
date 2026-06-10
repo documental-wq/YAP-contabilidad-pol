@@ -1,4 +1,4 @@
-﻿import { Router } from 'express'
+import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { verificarToken, requiereRol } from '../middleware/auth.js'
 import { enviarConfirmacionRegistro } from '../services/email.service.js'
@@ -11,8 +11,9 @@ const router = Router()
 // Obtener todas las personas (con búsqueda y paginación)
 router.get('/', verificarToken, async (req, res) => {
     try {
-        const { empresa_id, q, page = 1, limit = 200 } = req.query
-        const skip = (parseInt(page) - 1) * parseInt(limit)
+        const { empresa_id, q, page = 1, limit = 50 } = req.query
+        const limitNum = Math.min(parseInt(limit), 100)
+        const skip = (parseInt(page) - 1) * limitNum
 
         const where = {
             ...(empresa_id && { empresa_id }),
@@ -43,11 +44,11 @@ router.get('/', verificarToken, async (req, res) => {
                 },
                 orderBy: [{ primer_apellido: 'asc' }, { primer_nombre: 'asc' }],
                 skip,
-                take: parseInt(limit)
+                take: limitNum
             }),
             prisma.persona.count({ where })
         ])
-        res.json({ personas: descifrarPersonas(personas), total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) })
+        res.json({ personas: descifrarPersonas(personas), total, page: parseInt(page), limit: limitNum, totalPages: Math.ceil(total / limitNum) })
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener personas' })
     }
@@ -168,6 +169,7 @@ router.put('/:id', verificarToken, requiereRol(['superadmin', 'administrador']),
 
         res.json({ mensaje: 'Información actualizada', persona: personaDescifrada })
     } catch (error) {
+        if (error.code === 'P2025') return res.status(404).json({ error: 'Persona no encontrada.' })
         res.status(500).json({ error: 'Error al actualizar' })
     }
 })

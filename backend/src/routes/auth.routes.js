@@ -88,9 +88,9 @@ router.post('/refresh', async (req, res) => {
             return res.status(401).json({ error: 'Refresh token inválido o expirado. Por favor inicia sesión nuevamente.' })
         }
 
-        // Renovar la cookie con el mismo refreshToken (o uno nuevo si el servicio lo rota)
+        // Refresh Token Rotation: actualizar la cookie con el nuevo token rotado
         const isProd = process.env.NODE_ENV === 'production'
-        res.cookie('yap_refresh', refreshToken, {
+        res.cookie('yap_refresh', resultado.newRefreshToken, {
             httpOnly: true,
             secure: isProd,
             sameSite: isProd ? 'Strict' : 'Lax',

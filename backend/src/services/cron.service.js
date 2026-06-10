@@ -79,25 +79,31 @@ export const iniciarCronJobs = () => {
 
             console.log(`[CRON] ${proximasAVencer.length} cuotas vencen en los próximos 7 días.`)
 
-            // Enviar recordatorio por email a cada deudor (si RESEND_API_KEY está configurada)
+            // Enviar recordatorio por email a cada deudor en lotes paralelos de 10
+            // (evita 200 llamadas HTTP secuenciales a Resend)
+            const CHUNK_SIZE = 10
             let enviados = 0
-            for (const cuota of proximasAVencer) {
-                try {
-                    if (cuota.persona?.correo) {
-                        await enviarRecordatorioPago({
+            for (let i = 0; i < proximasAVencer.length; i += CHUNK_SIZE) {
+                const chunk = proximasAVencer.slice(i, i + CHUNK_SIZE)
+                const resultados = await Promise.allSettled(
+                    chunk
+                        .filter(cuota => cuota.persona?.correo)
+                        .map(cuota => enviarRecordatorioPago({
                             email: cuota.persona.correo,
                             nombreCompleto: `${cuota.persona.primer_nombre} ${cuota.persona.primer_apellido}`,
                             numeroCuota: cuota.numero_cuota,
                             montoCuota: cuota.cuota_total,
                             fechaVencimiento: cuota.fecha_programada,
                             tipoPrestamo: cuota.prestamo?.tipo?.nombre ?? 'Libranza'
-                        })
+                        }))
+                )
+                resultados.forEach((r, idx) => {
+                    if (r.status === 'fulfilled') {
                         enviados++
+                    } else {
+                        console.warn(`[CRON] Recordatorio fallido (chunk ${i}, idx ${idx}):`, r.reason?.message)
                     }
-                } catch (emailErr) {
-                    // Fallo silencioso — un correo fallido no debe detener el resto
-                    console.warn(`[CRON] Recordatorio no enviado a ${cuota.persona?.correo}:`, emailErr.message)
-                }
+                })
             }
             console.log(`[CRON] Recordatorios enviados: ${enviados}/${proximasAVencer.length}`)
         } catch (err) {
@@ -116,6 +122,21 @@ export const iniciarCronJobs = () => {
                 distinct: ['prestamo_id']
             })
             const idsConMoraReal = conCuotasVencidas.map(c => c.prestamo_id)
+
+            // Guard: si no hay ninguna cuota vencida, todos los en_mora sin cuotas
+            // vencidas deben pasar a activo — pero solo si hay al menos un préstamo en_mora
+            // para no ejecutar un updateMany innecesario.
+            if (idsConMoraReal.length === 0) {
+                // No hay cuotas vencidas reales — resetear todos los en_mora a activo
+                const reseteo = await prisma.prestamo.updateMany({
+                    where: { estado: 'en_mora' },
+                    data: { estado: 'activo' }
+                })
+                if (reseteo.count > 0) {
+                    console.log(`[CRON] ${reseteo.count} préstamos en_mora sin cuotas vencidas → activo.`)
+                }
+                return
+            }
 
             // Pasar a activo todos los en_mora que NO tienen cuotas vencidas
             const resultado = await prisma.prestamo.updateMany({
