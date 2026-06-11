@@ -274,7 +274,24 @@ export function TiposPrestamo() {
                                                     else setSelectedTasas(selectedTasas.filter(id => id !== t.id))
                                                 }}
                                             />
-                                            <span className="text-sm text-white font-medium">{t.nombre}</span>
+                                            <span className="text-sm text-white font-medium flex items-center gap-2">
+                                                {t.nombre}
+                                                {t.es_interes_principal && (
+                                                    <span className="text-[9px] bg-[#4FD1C5]/10 text-[#4FD1C5] px-1.5 py-0.5 rounded border border-[#4FD1C5]/20 font-bold uppercase tracking-wider">
+                                                        Principal
+                                                    </span>
+                                                )}
+                                                {t.es_cargo_unico && (
+                                                    <span className="text-[9px] bg-[#FFB020]/10 text-[#FFB020] px-1.5 py-0.5 rounded border border-[#FFB020]/20 font-bold uppercase tracking-wider">
+                                                        Único
+                                                    </span>
+                                                )}
+                                                {t.es_tasa_mora && (
+                                                    <span className="text-[9px] bg-[#F43F5E]/10 text-[#F43F5E] px-1.5 py-0.5 rounded border border-[#F43F5E]/20 font-bold uppercase tracking-wider">
+                                                        Mora
+                                                    </span>
+                                                )}
+                                            </span>
                                             <span className="text-[10px] text-[var(--texto-3)] ml-auto">
                                                 {t.tipo_calculo === 'monto_fijo' ? `$${t.valor_fijo}` : `${t.valor_porcentaje}%`}
                                             </span>

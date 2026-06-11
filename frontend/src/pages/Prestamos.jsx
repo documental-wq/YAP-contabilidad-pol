@@ -331,9 +331,82 @@ export function Prestamos() {
     )
 }
 
+const ensureThreeRates = (ratesList) => {
+    const list = [...ratesList]
+    
+    // 1. Interés Principal
+    let hasInteres = list.find(t => t.es_interes_principal) || list.find(t => {
+        const n = (t.nombre ?? '').toLowerCase()
+        return (n.includes('interés') || n.includes('interes') || n.includes('tasa')) && !t.es_tasa_mora
+    })
+    if (!hasInteres) {
+        hasInteres = {
+            id: 'adhoc-interes',
+            nombre: 'Interés Corriente',
+            tipo_calculo: 'porcentaje_periodico',
+            tipo_calculo_snapshot: 'porcentaje_periodico',
+            valor_porcentaje: 0,
+            valor_snapshot: 0,
+            es_interes_principal: true,
+            activa: true
+        }
+        list.push(hasInteres)
+    } else {
+        hasInteres.activa = true
+        if (hasInteres.valor_snapshot === undefined || hasInteres.valor_snapshot === null) {
+            hasInteres.valor_snapshot = hasInteres.valor_porcentaje ?? hasInteres.valor_fijo ?? 0
+        }
+    }
+
+    // 2. Estudio de Crédito
+    let hasEstudio = list.find(t => (t.nombre ?? '').toLowerCase().includes('estudio'))
+    if (!hasEstudio) {
+        hasEstudio = {
+            id: 'adhoc-estudio',
+            nombre: 'Estudio de Crédito',
+            tipo_calculo: 'porcentaje_periodico',
+            tipo_calculo_snapshot: 'porcentaje_periodico',
+            valor_porcentaje: 0,
+            valor_snapshot: 0,
+            es_cargo_unico: true,
+            activa: false
+        }
+        list.push(hasEstudio)
+    } else {
+        if (hasEstudio.valor_snapshot === undefined || hasEstudio.valor_snapshot === null) {
+            hasEstudio.valor_snapshot = hasEstudio.valor_porcentaje ?? hasEstudio.valor_fijo ?? 0
+        }
+        hasEstudio.activa = parseFloat(hasEstudio.valor_snapshot) > 0
+    }
+
+    // 3. Seguro / Póliza
+    let hasPoliza = list.find(t => {
+        const n = (t.nombre ?? '').toLowerCase()
+        return n.includes('poliza') || n.includes('póliza') || n.includes('seguro')
+    })
+    if (!hasPoliza) {
+        hasPoliza = {
+            id: 'adhoc-poliza',
+            nombre: 'Seguro de Vida',
+            tipo_calculo: 'porcentaje_periodico',
+            tipo_calculo_snapshot: 'porcentaje_periodico',
+            valor_porcentaje: 0,
+            valor_snapshot: 0,
+            activa: false
+        }
+        list.push(hasPoliza)
+    } else {
+        if (hasPoliza.valor_snapshot === undefined || hasPoliza.valor_snapshot === null) {
+            hasPoliza.valor_snapshot = hasPoliza.valor_porcentaje ?? hasPoliza.valor_fijo ?? 0
+        }
+        hasPoliza.activa = parseFloat(hasPoliza.valor_snapshot) > 0
+    }
+
+    return list
+}
+
 function ModalSimulador({ onClose, onPrintSuccess, initialPersonaId }) {
 
-    const [paso, setPaso] = useState(1) // 1: Datos, 2: Amortizacion
     const [personas, setPersonas] = useState([])
     const [tipos, setTipos] = useState([])
     const [mostrarModalPersona, setMostrarModalPersona] = useState(false)
@@ -349,7 +422,7 @@ function ModalSimulador({ onClose, onPrintSuccess, initialPersonaId }) {
     })
 
 
-    const [tasasActivas, setTasasActivas] = useState([])
+    const [tasasActivas, setTasasActivas] = useState(() => ensureThreeRates([]))
     const [calculo, setCalculo] = useState(null)
     const [loadingObj, setLoadingObj] = useState(false)
     const [cargandoDatos, setCargandoDatos] = useState(true)
@@ -445,7 +518,7 @@ function ModalSimulador({ onClose, onPrintSuccess, initialPersonaId }) {
             if (elTipo) {
                 // Inicializar tasasActivas basadas en las del tipo
                 const initial = (elTipo.tasas || []).map(tRel => ({ ...tRel.tasa, activa: true }))
-                setTasasActivas(initial)
+                setTasasActivas(ensureThreeRates(initial))
                 setFormData(prev => ({
                     ...prev,
                     metodo_amortizacion: elTipo.metodo_amortizacion || 'lineal',
@@ -510,6 +583,11 @@ function ModalSimulador({ onClose, onPrintSuccess, initialPersonaId }) {
                         updated.valor_fijo = parsedNum
                     } else {
                         updated.valor_porcentaje = parsedNum
+                    }
+
+                    // AUTO-ACTIVATE: Si no es interés principal ni de mora, activar solo si valor > 0
+                    if (!updated.es_interes_principal && !updated.es_tasa_mora) {
+                        updated.activa = parsedNum > 0
                     }
                 }
                 
@@ -739,244 +817,179 @@ function ModalSimulador({ onClose, onPrintSuccess, initialPersonaId }) {
                                     </div>
                                 </div>
 
-                                <h3 className="text-[var(--texto-1)] font-bold text-xs uppercase tracking-wider mb-2">Tasas y Cargos Aplicados</h3>
+                                <h3 className="text-[var(--texto-1)] font-bold text-xs uppercase tracking-wider mb-2">Tasas y Cargos</h3>
                                 
-                                {/* 1. Interés */}
-                                {tasaInteres && (
-                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <label className="flex items-center gap-2.5 text-sm text-[var(--texto-1)] font-bold cursor-pointer group">
+                                <div className="space-y-3.5">
+                                    {/* 1. Interés Principal */}
+                                    {tasaInteres && (
+                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs text-[var(--texto-2)] font-bold uppercase tracking-wider">Interés Corriente</span>
+                                                <span className="text-[9px] bg-[#4FD1C5]/10 text-[#4FD1C5] px-1.5 py-0.5 rounded border border-[#4FD1C5]/20 font-bold uppercase tracking-wider">Principal</span>
+                                            </div>
+                                            <div className="relative">
                                                 <input
-                                                    type="checkbox"
-                                                    checked={tasaInteres.activa}
-                                                    onChange={(e) => handleTasaChange(tasaInteres.id, 'activa', e.target.checked)}
-                                                    className="accent-[var(--cyan)] w-4 h-4 rounded border border-white/20 transition-all group-hover:scale-110"
+                                                    type="number" step="0.0001"
+                                                    value={tasaInteres.valor_snapshot ?? tasaInteres.valor_porcentaje ?? tasaInteres.valor_fijo ?? ''}
+                                                    onChange={(e) => handleTasaChange(tasaInteres.id, 'valor_snapshot', e.target.value)}
+                                                    className="w-full bg-[var(--cyan)]/5 border border-[#4FD1C5]/30 text-[#4FD1C5] font-black text-sm px-3 py-2.5 rounded-xl focus:outline-none focus:border-[var(--cyan)] text-right pr-7"
+                                                    placeholder="0.00"
                                                 />
-                                                <span className="tracking-tight">{tasaInteres.nombre}</span>
-                                            </label>
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-[#4FD1C5] opacity-60">%</span>
+                                            </div>
                                         </div>
-                                        {tasaInteres.activa && (
-                                            <div className="flex items-center gap-2">
+                                    )}
+
+                                    {/* 2. Estudio de Crédito */}
+                                    {tasaEstudio && (
+                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs text-[var(--texto-2)] font-bold uppercase tracking-wider">Estudio de Crédito</span>
                                                 <select
-                                                    value={tasaInteres.tipo_calculo}
-                                                    onChange={(e) => handleTasaChange(tasaInteres.id, 'tipo_calculo', e.target.value)}
-                                                    className="bg-[var(--fondo-input)] border border-[var(--borde)] text-[var(--texto-1)] text-[11px] font-bold px-2 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)]"
+                                                    value={tasaEstudio.tipo_calculo_snapshot ?? tasaEstudio.tipo_calculo}
+                                                    onChange={(e) => handleTasaChange(tasaEstudio.id, 'tipo_calculo', e.target.value)}
+                                                    className="bg-[var(--fondo-input)] border border-[var(--borde)] text-[var(--texto-1)] text-[10px] font-bold px-2 py-1 rounded-lg focus:outline-none focus:border-[var(--cyan)]"
                                                 >
-                                                    <option value="porcentaje_periodico">% Periódico (Interés)</option>
-                                                    <option value="monto_fijo">$ Valor Fijo (Cargo)</option>
+                                                    <option value="porcentaje_periodico">% Periódico</option>
+                                                    <option value="monto_fijo">$ Valor Fijo</option>
                                                 </select>
-                                                <div className="relative flex-1">
-                                                    <input
-                                                        type="number" step="0.0001"
-                                                        value={tasaInteres.valor_snapshot ?? tasaInteres.valor_porcentaje ?? tasaInteres.valor_fijo}
-                                                        onChange={(e) => handleTasaChange(tasaInteres.id, 'valor_snapshot', e.target.value)}
-                                                        className="w-full bg-[var(--cyan)]/5 border border-[#4FD1C5]/30 text-[#4FD1C5] font-black text-sm px-3 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)] text-right pr-7"
-                                                    />
-                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-[#4FD1C5] opacity-60">
-                                                        {tasaInteres.tipo_calculo === 'porcentaje_periodico' ? '%' : '$'}
-                                                    </span>
-                                                </div>
                                             </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* 2. Estudio de Crédito */}
-                                {tasaEstudio && (
-                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <label className="flex items-center gap-2.5 text-sm text-[var(--texto-1)] font-bold cursor-pointer group">
+                                            <div className="relative">
+                                                <input
+                                                    type="number" step="0.0001"
+                                                    value={tasaEstudio.valor_snapshot ?? tasaEstudio.valor_porcentaje ?? tasaEstudio.valor_fijo ?? ''}
+                                                    onChange={(e) => handleTasaChange(tasaEstudio.id, 'valor_snapshot', e.target.value)}
+                                                    className="w-full bg-white/5 border border-white/10 text-white font-bold text-sm px-3 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)] text-right pr-7"
+                                                    placeholder="0.00"
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--texto-3)]">
+                                                    {(tasaEstudio.tipo_calculo_snapshot ?? tasaEstudio.tipo_calculo) === 'monto_fijo' ? '$' : '%'}
+                                                </span>
+                                            </div>
+                                            <label className="flex items-center gap-2 p-2 bg-black/5 rounded-xl border border-[var(--borde)] cursor-pointer hover:bg-black/10 transition-colors group">
                                                 <input
                                                     type="checkbox"
-                                                    checked={tasaEstudio.activa}
-                                                    onChange={(e) => handleTasaChange(tasaEstudio.id, 'activa', e.target.checked)}
-                                                    className="accent-[var(--cyan)] w-4 h-4 rounded border border-white/20 transition-all group-hover:scale-110"
+                                                    checked={tasaEstudio.es_cargo_unico}
+                                                    onChange={(e) => handleTasaChange(tasaEstudio.id, 'es_cargo_unico', e.target.checked)}
+                                                    className="accent-[var(--cyan)] w-3.5 h-3.5 rounded border border-white/20"
                                                 />
-                                                <span className="tracking-tight">{tasaEstudio.nombre}</span>
+                                                <span className="text-[9px] text-[var(--texto-2)] group-hover:text-[var(--texto-1)] font-bold uppercase tracking-wide">
+                                                    ¿Cobrar solo una vez?
+                                                </span>
                                             </label>
-                                            {tasaEstudio.es_cargo_unico && <span className="text-[9px] text-[#FFB020] uppercase bg-[#FFB020]/10 px-2 py-0.5 rounded-full border border-[#FFB020]/20 font-black">Único</span>}
                                         </div>
-                                        {tasaEstudio.activa && (
-                                            <div className="space-y-3">
-                                                <div className="flex items-center gap-2">
-                                                    <select
-                                                        value={tasaEstudio.tipo_calculo}
-                                                        onChange={(e) => handleTasaChange(tasaEstudio.id, 'tipo_calculo', e.target.value)}
-                                                        className="bg-[var(--fondo-input)] border border-[var(--borde)] text-[var(--texto-1)] text-[11px] font-bold px-2 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)]"
-                                                    >
-                                                        <option value="porcentaje_periodico">% Periódico (Interés)</option>
-                                                        <option value="monto_fijo">$ Valor Fijo (Cargo)</option>
-                                                    </select>
-                                                    <div className="relative flex-1">
-                                                        <input
-                                                            type="number" step="0.0001"
-                                                            value={tasaEstudio.valor_snapshot ?? tasaEstudio.valor_porcentaje ?? tasaEstudio.valor_fijo}
-                                                            onChange={(e) => handleTasaChange(tasaEstudio.id, 'valor_snapshot', e.target.value)}
-                                                            className="w-full bg-[var(--cyan)]/5 border border-[#4FD1C5]/30 text-[#4FD1C5] font-black text-sm px-3 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)] text-right pr-7"
-                                                        />
-                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-[#4FD1C5] opacity-60">
-                                                            {tasaEstudio.tipo_calculo === 'porcentaje_periodico' ? '%' : '$'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <label className="flex items-center gap-2 p-2 bg-black/5 rounded-xl border border-[var(--borde)] cursor-pointer hover:bg-black/10 transition-colors group">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={tasaEstudio.es_cargo_unico}
-                                                        onChange={(e) => handleTasaChange(tasaEstudio.id, 'es_cargo_unico', e.target.checked)}
-                                                        className="accent-[var(--cyan)] w-3.5 h-3.5 rounded border border-white/20"
-                                                    />
-                                                    <span className="text-[9px] text-[var(--texto-2)] group-hover:text-[var(--texto-1)] font-bold uppercase tracking-wide">
-                                                        ¿Cobrar solo una vez?
-                                                    </span>
-                                                </label>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                    )}
 
-                                {/* 3. Póliza */}
-                                {tasaPoliza && (
-                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <label className="flex items-center gap-2.5 text-sm text-[var(--texto-1)] font-bold cursor-pointer group">
+                                    {/* 3. Póliza / Seguro */}
+                                    {tasaPoliza && (
+                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs text-[var(--texto-2)] font-bold uppercase tracking-wider">Póliza / Seguro</span>
+                                                <select
+                                                    value={tasaPoliza.tipo_calculo_snapshot ?? tasaPoliza.tipo_calculo}
+                                                    onChange={(e) => handleTasaChange(tasaPoliza.id, 'tipo_calculo', e.target.value)}
+                                                    className="bg-[var(--fondo-input)] border border-[var(--borde)] text-[var(--texto-1)] text-[10px] font-bold px-2 py-1 rounded-lg focus:outline-none focus:border-[var(--cyan)]"
+                                                >
+                                                    <option value="porcentaje_periodico">% Periódico</option>
+                                                    <option value="monto_fijo">$ Valor Fijo</option>
+                                                </select>
+                                            </div>
+                                            <div className="relative">
+                                                <input
+                                                    type="number" step="0.0001"
+                                                    value={tasaPoliza.valor_snapshot ?? tasaPoliza.valor_porcentaje ?? tasaPoliza.valor_fijo ?? ''}
+                                                    onChange={(e) => handleTasaChange(tasaPoliza.id, 'valor_snapshot', e.target.value)}
+                                                    className="w-full bg-white/5 border border-white/10 text-white font-bold text-sm px-3 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)] text-right pr-7"
+                                                    placeholder="0.00"
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--texto-3)]">
+                                                    {(tasaPoliza.tipo_calculo_snapshot ?? tasaPoliza.tipo_calculo) === 'monto_fijo' ? '$' : '%'}
+                                                </span>
+                                            </div>
+                                            <label className="flex items-center gap-2 p-2 bg-black/5 rounded-xl border border-[var(--borde)] cursor-pointer hover:bg-black/10 transition-colors group">
                                                 <input
                                                     type="checkbox"
-                                                    checked={tasaPoliza.activa}
-                                                    onChange={(e) => handleTasaChange(tasaPoliza.id, 'activa', e.target.checked)}
-                                                    className="accent-[var(--cyan)] w-4 h-4 rounded border border-white/20 transition-all group-hover:scale-110"
+                                                    checked={tasaPoliza.es_cargo_unico}
+                                                    onChange={(e) => handleTasaChange(tasaPoliza.id, 'es_cargo_unico', e.target.checked)}
+                                                    className="accent-[var(--cyan)] w-3.5 h-3.5 rounded border border-white/20"
                                                 />
-                                                <span className="tracking-tight">{tasaPoliza.nombre}</span>
+                                                <span className="text-[9px] text-[var(--texto-2)] group-hover:text-[var(--texto-1)] font-bold uppercase tracking-wide">
+                                                    ¿Cobrar solo una vez?
+                                                </span>
                                             </label>
-                                            {tasaPoliza.es_cargo_unico && <span className="text-[9px] text-[#FFB020] uppercase bg-[#FFB020]/10 px-2 py-0.5 rounded-full border border-[#FFB020]/20 font-black">Único</span>}
                                         </div>
-                                        {tasaPoliza.activa && (
-                                            <div className="space-y-3">
-                                                <div className="flex items-center gap-2">
-                                                    <select
-                                                        value={tasaPoliza.tipo_calculo}
-                                                        onChange={(e) => handleTasaChange(tasaPoliza.id, 'tipo_calculo', e.target.value)}
-                                                        className="bg-[var(--fondo-input)] border border-[var(--borde)] text-[var(--texto-1)] text-[11px] font-bold px-2 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)]"
-                                                    >
-                                                        <option value="porcentaje_periodico">% Periódico (Interés)</option>
-                                                        <option value="monto_fijo">$ Valor Fijo (Cargo)</option>
-                                                    </select>
-                                                    <div className="relative flex-1">
-                                                        <input
-                                                            type="number" step="0.0001"
-                                                            value={tasaPoliza.valor_snapshot ?? tasaPoliza.valor_porcentaje ?? tasaPoliza.valor_fijo}
-                                                            onChange={(e) => handleTasaChange(tasaPoliza.id, 'valor_snapshot', e.target.value)}
-                                                            className="w-full bg-[var(--cyan)]/5 border border-[#4FD1C5]/30 text-[#4FD1C5] font-black text-sm px-3 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)] text-right pr-7"
-                                                        />
-                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-[#4FD1C5] opacity-60">
-                                                            {tasaPoliza.tipo_calculo === 'porcentaje_periodico' ? '%' : '$'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <label className="flex items-center gap-2 p-2 bg-black/5 rounded-xl border border-[var(--borde)] cursor-pointer hover:bg-black/10 transition-colors group">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={tasaPoliza.es_cargo_unico}
-                                                        onChange={(e) => handleTasaChange(tasaPoliza.id, 'es_cargo_unico', e.target.checked)}
-                                                        className="accent-[var(--cyan)] w-3.5 h-3.5 rounded border border-white/20"
-                                                    />
-                                                    <span className="text-[9px] text-[var(--texto-2)] group-hover:text-[var(--texto-1)] font-bold uppercase tracking-wide">
-                                                        ¿Cobrar solo una vez?
-                                                    </span>
-                                                </label>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                    )}
 
-                                {/* Adicionales */}
-                                {otrasTasas.length > 0 && (
-                                    <div className="space-y-3 pt-3 border-t border-white/5 animate-fade-in">
-                                        <h4 className="text-[var(--texto-3)] font-bold text-[10px] uppercase tracking-wider">Cargos Adicionales</h4>
-                                        {otrasTasas.map(tasa => (
-                                            <div key={tasa.id} className="p-4 bg-white/5 border border-white/10 rounded-2xl space-y-3">
-                                                <div className="flex items-center justify-between">
-                                                    {tasa.es_adhoc ? (
-                                                        <div className="flex-1 mr-2">
-                                                            <input
-                                                                type="text"
-                                                                value={tasa.nombre}
-                                                                onChange={(e) => handleTasaChange(tasa.id, 'nombre', e.target.value)}
-                                                                className="w-full bg-transparent border-b border-[var(--cyan)]/30 text-sm text-[var(--texto-1)] font-bold focus:outline-none focus:border-[var(--cyan)]"
-                                                                placeholder="Título del cargo..."
-                                                            />
-                                                        </div>
-                                                    ) : (
-                                                        <label className="flex items-center gap-2.5 text-sm text-[var(--texto-1)] font-bold cursor-pointer group">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={tasa.activa}
-                                                                onChange={(e) => handleTasaChange(tasa.id, 'activa', e.target.checked)}
-                                                                className="accent-[var(--cyan)] w-4 h-4 rounded border border-white/20 transition-all group-hover:scale-110"
-                                                            />
-                                                            <span className="tracking-tight">{tasa.nombre}</span>
-                                                        </label>
-                                                    )}
-                                                    <div className="flex items-center gap-1">
-                                                        {tasa.es_adhoc && !tasa.guardado && (
-                                                            <button
-                                                                onClick={() => guardarTasaGlobal(tasa)}
-                                                                className="text-[var(--cyan)] hover:bg-[var(--cyan)]/10 p-1.5 rounded-lg transition-colors"
-                                                                title="Guardar en catálogo"
-                                                            >
-                                                                <Save size={14} />
-                                                            </button>
-                                                        )}
-                                                        {tasa.guardado && (
-                                                            <div className="text-[#10B981] p-1.5" title="Guardado">
-                                                                <Check size={14} />
-                                                            </div>
-                                                        )}
-                                                        <button onClick={() => eliminarTasaAdhoc(tasa.id)} className="text-[#F43F5E] hover:bg-[#F43F5E]/10 p-1.5 rounded-lg transition-colors">
-                                                            <Trash2 size={14} />
+                                    {/* 4. Otros cargos del préstamo */}
+                                    {otrasTasas.map(tasa => (
+                                        <div key={tasa.id} className="p-4 bg-white/5 border border-white/10 rounded-2xl space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex-1 mr-2">
+                                                    <input
+                                                        type="text"
+                                                        value={tasa.nombre}
+                                                        onChange={(e) => handleTasaChange(tasa.id, 'nombre', e.target.value)}
+                                                        className="w-full bg-transparent border-b border-[var(--cyan)]/30 text-sm text-[var(--texto-1)] font-bold focus:outline-none focus:border-[var(--cyan)]"
+                                                        placeholder="Título del cargo..."
+                                                    />
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    {tasa.es_adhoc && !tasa.guardado && (
+                                                        <button
+                                                            onClick={() => guardarTasaGlobal(tasa)}
+                                                            className="text-[var(--cyan)] hover:bg-[var(--cyan)]/10 p-1.5 rounded-lg transition-colors"
+                                                            title="Guardar en catálogo"
+                                                        >
+                                                            <Save size={14} />
                                                         </button>
+                                                    )}
+                                                    {tasa.guardado && (
+                                                        <div className="text-[#10B981] p-1.5" title="Guardado">
+                                                            <Check size={14} />
+                                                        </div>
+                                                    )}
+                                                    <button onClick={() => eliminarTasaAdhoc(tasa.id)} className="text-[#F43F5E] hover:bg-[#F43F5E]/10 p-1.5 rounded-lg transition-colors">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-3 font-sans">
+                                                <div className="flex items-center gap-2">
+                                                    <select
+                                                        value={tasa.tipo_calculo_snapshot ?? tasa.tipo_calculo}
+                                                        onChange={(e) => handleTasaChange(tasa.id, 'tipo_calculo', e.target.value)}
+                                                        className="bg-[var(--fondo-input)] border border-[var(--borde)] text-[var(--texto-1)] text-[11px] font-bold px-2 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)]"
+                                                    >
+                                                        <option value="porcentaje_periodico">% Periódico</option>
+                                                        <option value="monto_fijo">$ Valor Fijo</option>
+                                                    </select>
+                                                    <div className="relative flex-1">
+                                                        <input
+                                                            type="number" step="0.0001"
+                                                            value={tasa.valor_snapshot ?? tasa.valor_porcentaje ?? tasa.valor_fijo ?? ''}
+                                                            onChange={(e) => handleTasaChange(tasa.id, 'valor_snapshot', e.target.value)}
+                                                            className="w-full bg-[var(--cyan)]/5 border border-[#4FD1C5]/30 text-[#4FD1C5] font-black text-sm px-3 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)] text-right pr-7"
+                                                        />
+                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-[#4FD1C5] opacity-60">
+                                                            {(tasa.tipo_calculo_snapshot ?? tasa.tipo_calculo) === 'monto_fijo' ? '$' : '%'}
+                                                        </span>
                                                     </div>
                                                 </div>
-                                                {tasa.activa && (
-                                                    <div className="space-y-3">
-                                                        <div className="flex items-center gap-2">
-                                                            <select
-                                                                value={tasa.tipo_calculo}
-                                                                onChange={(e) => handleTasaChange(tasa.id, 'tipo_calculo', e.target.value)}
-                                                                className="bg-[var(--fondo-input)] border border-[var(--borde)] text-[var(--texto-1)] text-[11px] font-bold px-2 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)]"
-                                                            >
-                                                                <option value="porcentaje_periodico">% Periódico (Interés)</option>
-                                                                <option value="monto_fijo">$ Valor Fijo (Cargo)</option>
-                                                            </select>
-                                                            <div className="relative flex-1">
-                                                                <input
-                                                                    type="number" step="0.0001"
-                                                                    value={tasa.valor_snapshot ?? tasa.valor_porcentaje ?? tasa.valor_fijo}
-                                                                    onChange={(e) => handleTasaChange(tasa.id, 'valor_snapshot', e.target.value)}
-                                                                    className="w-full bg-[var(--cyan)]/5 border border-[#4FD1C5]/30 text-[#4FD1C5] font-black text-sm px-3 py-2 rounded-xl focus:outline-none focus:border-[var(--cyan)] text-right pr-7"
-                                                                />
-                                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-[#4FD1C5] opacity-60">
-                                                                    {tasa.tipo_calculo === 'porcentaje_periodico' ? '%' : '$'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        <label className="flex items-center gap-2 p-2 bg-black/5 rounded-xl border border-[var(--borde)] cursor-pointer hover:bg-black/10 transition-colors group">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={tasa.es_cargo_unico}
-                                                                onChange={(e) => handleTasaChange(tasa.id, 'es_cargo_unico', e.target.checked)}
-                                                                className="accent-[var(--cyan)] w-3.5 h-3.5 rounded border border-white/20"
-                                                            />
-                                                            <span className="text-[9px] text-[var(--texto-2)] group-hover:text-[var(--texto-1)] font-bold uppercase tracking-wide">
-                                                                ¿Cobrar solo una vez?
-                                                            </span>
-                                                        </label>
-                                                    </div>
-                                                )}
+                                                <label className="flex items-center gap-2 p-2 bg-black/5 rounded-xl border border-[var(--borde)] cursor-pointer hover:bg-black/10 transition-colors group">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={tasa.es_cargo_unico}
+                                                        onChange={(e) => handleTasaChange(tasa.id, 'es_cargo_unico', e.target.checked)}
+                                                        className="accent-[var(--cyan)] w-3.5 h-3.5 rounded border border-white/20"
+                                                    />
+                                                    <span className="text-[9px] text-[var(--texto-2)] group-hover:text-[var(--texto-1)] font-bold uppercase tracking-wide">
+                                                        ¿Cobrar solo una vez?
+                                                    </span>
+                                                </label>
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
+                                        </div>
+                                    ))}
+                                </div>
 
                                 <button
                                     onClick={agregarTasaAdhoc}
@@ -986,8 +999,7 @@ function ModalSimulador({ onClose, onPrintSuccess, initialPersonaId }) {
                                     <Plus size={14} /> Agregar Cargo Personalizado
                                 </button>
                             </div>
-                        )
-}
+                        )}
 
                         {/* Botón de Guardado Permanente en la columna de datos */}
                         <div className="mt-8 pt-6 border-t border-white/10">

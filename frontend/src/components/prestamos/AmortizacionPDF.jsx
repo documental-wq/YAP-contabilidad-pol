@@ -15,9 +15,29 @@ export const AmortizacionPDF = forwardRef(({ prestamo }, ref) => {
     const interesTasa = tasas_aplicadas?.find(t => t.nombre_snapshot.toLowerCase().includes('interés') || t.nombre_snapshot.toLowerCase().includes('tasa')) || {};
     const tasaNominal = (interesTasa.valor_snapshot || 0).toFixed(2);
 
-    // Buscar cargos específicos si existen para el desglose minucioso
-    const seguroTasa = tasas_aplicadas?.find(t => t.nombre_snapshot.toLowerCase().includes('seguro'))?.valor_snapshot || 0;
-    const ahorroTasa = tasas_aplicadas?.find(t => t.nombre_snapshot.toLowerCase().includes('ahorro'))?.valor_snapshot || 0;
+    // Buscar cargos específicos si existen para el desglose minucioso (búsqueda robusta)
+    const seguroTasaRecord = tasas_aplicadas?.find(t => {
+        const name = (t.nombre_snapshot || '').toLowerCase();
+        return name.includes('seguro') || name.includes('poliza') || name.includes('póliza') || name.includes('aval') || name.includes('cargo') || name.includes('estudio') || name.includes('auxilio');
+    });
+    
+    const ahorroTasaRecord = tasas_aplicadas?.find(t => {
+        const name = (t.nombre_snapshot || '').toLowerCase();
+        return name.includes('ahorro') || name.includes('social') || name.includes('solidario');
+    });
+
+    const formatTasaValor = (record) => {
+        if (!record) return '$0';
+        const tipo = record.tipo_calculo_snapshot || record.tipo_calculo;
+        const val = record.valor_snapshot;
+        if (tipo === 'monto_fijo') {
+            return formatCurrency(val);
+        }
+        return `${Number(val).toFixed(2)}%`;
+    };
+
+    const seguroTasaStr = formatTasaValor(seguroTasaRecord);
+    const ahorroTasaStr = formatTasaValor(ahorroTasaRecord);
 
     // Totales de pie de tabla
     const totalCapital = cuotas?.reduce((acc, c) => acc + (c.capital_cuota || 0), 0) || 0;
@@ -108,8 +128,8 @@ export const AmortizacionPDF = forwardRef(({ prestamo }, ref) => {
                     <div className="p-1">{tasaNominal}%</div>
                     <div className="p-1">QUINCENAL</div>
                     <div className="p-1">0 / 0</div>
-                    <div className="p-1 text-red-600">{formatCurrency(seguroTasa)}</div>
-                    <div className="p-1">{formatCurrency(ahorroTasa)}</div>
+                    <div className="p-1 text-red-600">{seguroTasaStr}</div>
+                    <div className="p-1">{ahorroTasaStr}</div>
                 </div>
             </div>
 
@@ -128,7 +148,7 @@ export const AmortizacionPDF = forwardRef(({ prestamo }, ref) => {
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-black/20 font-bold">
-                    {cuotas?.map((c, idx) => (
+                    {cuotas?.map((c) => (
                         <tr key={c.id} className="divide-x divide-black text-center uppercase">
                             <td className="p-1">{c.numero_cuota}</td>
                             <td className="p-1">{formatFechaCorta(c.fecha_programada)}</td>
