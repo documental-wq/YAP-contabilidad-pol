@@ -207,6 +207,9 @@ router.post('/masivo', verificarToken, requiereRol(['superadmin', 'administrador
             const cuota = prestamo.cuotas[0];
             if (!cuota) throw new Error('Sin cuotas pendientes');
 
+            // Asociar el préstamo a la cuota para que pagos.service.js acceda a tasas_aplicadas
+            cuota.prestamo = prestamo;
+
             // 2. Procesar pago (Similar a registro individual pero silenciado)
             const pagoResult = await prisma.$transaction(async (tx) => {
                 return await procesarPagoCuota(tx, {
