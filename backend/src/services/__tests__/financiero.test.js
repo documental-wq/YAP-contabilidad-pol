@@ -829,5 +829,49 @@ describe('6. calcularMora - Intereses por Atraso', () => {
             expect(new Date(resultado.tablaCuotas[2].fechaPago).getUTCDate()).toBe(15)
             expect(new Date(resultado.tablaCuotas[3].fechaPago).getUTCDate()).toBe(28)
         })
+
+        it('debe alinear las cuotas al calendario de quincena dinámico empezando el día 10', () => {
+            const capital = 1000000
+            const tasas = [tasaInteres(2.0)]
+            const resultado = calcularPrestamo({
+                montoOtorgado: capital,
+                numeroCuotas: 4,
+                fechaPrimerPago: '2026-01-10T12:00:00.000Z',
+                tasasAsignadas: tasas,
+                metodoAmortizacion: 'lineal'
+            })
+
+            // Las cuotas deben tener las fechas:
+            // Cuota 1: 2026-01-10
+            // Cuota 2: 2026-01-25
+            // Cuota 3: 2026-02-10
+            // Cuota 4: 2026-02-25
+            expect(new Date(resultado.tablaCuotas[0].fechaPago).getUTCDate()).toBe(10)
+            expect(new Date(resultado.tablaCuotas[1].fechaPago).getUTCDate()).toBe(25)
+            expect(new Date(resultado.tablaCuotas[2].fechaPago).getUTCDate()).toBe(10)
+            expect(new Date(resultado.tablaCuotas[3].fechaPago).getUTCDate()).toBe(25)
+        })
+
+        it('debe alinear las cuotas al calendario de quincena dinámico empezando el día 25', () => {
+            const capital = 1000000
+            const tasas = [tasaInteres(2.0)]
+            const resultado = calcularPrestamo({
+                montoOtorgado: capital,
+                numeroCuotas: 4,
+                fechaPrimerPago: '2026-01-25T12:00:00.000Z',
+                tasasAsignadas: tasas,
+                metodoAmortizacion: 'lineal'
+            })
+
+            // Las cuotas deben tener las fechas:
+            // Cuota 1: 2026-01-25
+            // Cuota 2: 2026-02-10
+            // Cuota 3: 2026-02-25
+            // Cuota 4: 2026-03-10
+            expect(new Date(resultado.tablaCuotas[0].fechaPago).getUTCDate()).toBe(25)
+            expect(new Date(resultado.tablaCuotas[1].fechaPago).getUTCDate()).toBe(10)
+            expect(new Date(resultado.tablaCuotas[2].fechaPago).getUTCDate()).toBe(25)
+            expect(new Date(resultado.tablaCuotas[3].fechaPago).getUTCDate()).toBe(10)
+        })
     })
 

@@ -47,7 +47,7 @@ model TipoPrestamo {
   monto_minimo        Float               @default(100000)
   monto_maximo        Float               @default(0)
   estado              String              @default("activo")
-  metodo_amortizacion String              @default("lineal")
+  metodo_amortizacion String              @default("frances")
   diferir_cargos      Boolean             @default(true)
   fecha_creacion      DateTime            @default(now())
   prestamos           Prestamo[]
@@ -139,7 +139,7 @@ model Prestamo {
   tipo_id             String
   monto_otorgado      Float
   numero_cuotas       Int
-  metodo_amortizacion String            @default("lineal")
+  metodo_amortizacion String            @default("frances")
   diferir_cargos      Boolean           @default(true)
   cuota_primera       Float?
   cuota_estandar      Float?

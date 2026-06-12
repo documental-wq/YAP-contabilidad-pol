@@ -18,7 +18,7 @@ export function TiposPrestamo() {
         monto_minimo: 0,
         monto_maximo: 0,
         descripcion: '',
-        metodo_amortizacion: 'lineal',
+        metodo_amortizacion: 'frances',
         diferir_cargos: true
     })
     const [tasasDisponibles, setTasasDisponibles] = useState([])
@@ -56,7 +56,7 @@ export function TiposPrestamo() {
             monto_minimo: tipo?.monto_minimo || 0,
             monto_maximo: tipo?.monto_maximo || 0,
             descripcion: tipo?.descripcion || '',
-            metodo_amortizacion: tipo?.metodo_amortizacion || 'lineal',
+            metodo_amortizacion: tipo?.metodo_amortizacion || 'frances',
             diferir_cargos: tipo?.diferir_cargos !== undefined ? tipo.diferir_cargos : true
         })
         setSelectedTasas(tipo?.tasas?.map(t => t.tasa_id) || [])

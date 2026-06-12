@@ -417,7 +417,7 @@ function ModalSimulador({ onClose, onPrintSuccess, initialPersonaId }) {
         monto: '',
         cuotas: '12',
         fechaPrimerPago: new Date().toISOString().split('T')[0],
-        metodo_amortizacion: 'lineal',
+        metodo_amortizacion: 'frances',
         diferir_cargos: true
     })
 
@@ -521,7 +521,7 @@ function ModalSimulador({ onClose, onPrintSuccess, initialPersonaId }) {
                 setTasasActivas(ensureThreeRates(initial))
                 setFormData(prev => ({
                     ...prev,
-                    metodo_amortizacion: elTipo.metodo_amortizacion || 'lineal',
+                    metodo_amortizacion: elTipo.metodo_amortizacion || 'frances',
                     diferir_cargos: elTipo.diferir_cargos !== undefined ? elTipo.diferir_cargos : true
                 }))
             }
@@ -800,8 +800,8 @@ function ModalSimulador({ onClose, onPrintSuccess, initialPersonaId }) {
                                             onChange={e => setFormData({ ...formData, metodo_amortizacion: e.target.value })}
                                             className="w-full bg-[var(--fondo-input)] border border-[var(--borde)] rounded-xl px-2.5 py-2.5 text-[var(--texto-1)] text-xs font-bold focus:border-[var(--cyan)] focus:outline-none"
                                         >
-                                            <option value="lineal">Lineal (Capital Const.)</option>
                                             <option value="frances">Francesa (Cuota Fija)</option>
+                                            <option value="lineal">Lineal (Capital Const.)</option>
                                         </select>
                                     </div>
                                     <div className="flex flex-col justify-end">

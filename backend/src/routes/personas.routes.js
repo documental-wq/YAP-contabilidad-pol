@@ -11,7 +11,7 @@ const router = Router()
 // Obtener todas las personas (con búsqueda y paginación)
 router.get('/', verificarToken, async (req, res) => {
     try {
-        const { empresa_id, q, page = 1, limit = 50 } = req.query
+        const { empresa_id, q, page = 1, limit = 50, noLimit } = req.query
         const limitNum = Math.min(parseInt(limit), 100)
         const skip = (parseInt(page) - 1) * limitNum
 
@@ -43,8 +43,10 @@ router.get('/', verificarToken, async (req, res) => {
                     }
                 },
                 orderBy: [{ primer_apellido: 'asc' }, { primer_nombre: 'asc' }],
-                skip,
-                take: limitNum
+                ...(noLimit !== 'true' && {
+                    skip,
+                    take: limitNum
+                })
             }),
             prisma.persona.count({ where })
         ])

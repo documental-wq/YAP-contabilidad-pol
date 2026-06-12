@@ -107,7 +107,7 @@ export const prestamoCrearSchema = z.object({
         fecha_creacion: z.union([z.string(), z.date()]).optional(),
         creado_por: z.string().nullable().optional()
     })).optional().default([]),
-    metodo_amortizacion: z.string().optional().default('lineal'),
+    metodo_amortizacion: z.string().optional().default('frances'),
     diferir_cargos: z.boolean().optional().default(true),
     observaciones: z.string().trim().optional().default('')
 })

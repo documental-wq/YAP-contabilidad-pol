@@ -228,7 +228,7 @@ router.post('/', verificarToken, requiereRol(['superadmin', 'administrador']), v
                     numero_prestamo,
                     monto_otorgado: calculo.montoOtorgado,
                     numero_cuotas: calculo.numeroCuotas,
-                    metodo_amortizacion: data.metodo_amortizacion || 'lineal',
+                    metodo_amortizacion: data.metodo_amortizacion || 'frances',
                     diferir_cargos: data.diferir_cargos !== false,
                     cuota_primera: calculo.cuotaPrimera,
                     cuota_estandar: calculo.cuotaEstandar,

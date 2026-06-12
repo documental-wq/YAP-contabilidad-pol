@@ -32,7 +32,7 @@ export function ModalRecaudoMasivo({ onClose, onRefresh }) {
         }
 
         setCargandoEmpleados(true);
-        api.get(`/personas?empresa_id=${empresaId}`)
+        api.get(`/personas?empresa_id=${empresaId}&noLimit=true`)
             .then(res => {
                 const personas = res.data?.personas || [];
                 // Filtrar solo los que tienen préstamos activos o en mora

@@ -2,6 +2,45 @@ const redondear2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
 const redondear4 = (n) => Math.round((n + Number.EPSILON) * 10000) / 10000
 const redondear6 = (n) => Math.round((n + Number.EPSILON) * 1000000) / 1000000
 
+export function obtenerSiguienteQuincena(fecha, fechaPrimerPago) {
+    const nuevaFecha = new Date(fecha.getTime())
+    const refFecha = fechaPrimerPago ? new Date(fechaPrimerPago) : new Date(fecha.getTime())
+    const diaInicio = refFecha.getDate()
+    const diaActual = nuevaFecha.getDate()
+    
+    // Si el día de inicio es el 15 o representa el fin de mes (28 o más)
+    if (diaInicio === 15 || diaInicio >= 28) {
+        if (diaActual === 15) {
+            // Ir al último día del mismo mes.
+            nuevaFecha.setDate(1)
+            nuevaFecha.setMonth(nuevaFecha.getMonth() + 1)
+            nuevaFecha.setDate(0)
+        } else {
+            // Ir al día 15 del siguiente mes.
+            nuevaFecha.setDate(15)
+            nuevaFecha.setMonth(nuevaFecha.getMonth() + 1)
+        }
+    } else if (diaInicio < 15) {
+        const segundoDia = diaInicio + 15
+        if (diaActual === diaInicio) {
+            nuevaFecha.setDate(segundoDia)
+        } else {
+            nuevaFecha.setDate(diaInicio)
+            nuevaFecha.setMonth(nuevaFecha.getMonth() + 1)
+        }
+    } else {
+        // diaInicio > 15 pero menor que 28. Ejemplo: 25.
+        const primerDia = diaInicio - 15
+        if (diaActual === diaInicio) {
+            nuevaFecha.setDate(primerDia)
+            nuevaFecha.setMonth(nuevaFecha.getMonth() + 1)
+        } else {
+            nuevaFecha.setDate(diaInicio)
+        }
+    }
+    return nuevaFecha
+}
+
 export function obtenerTasaQuincenal(tasa) {
     const tipo = tasa.tipo_calculo_snapshot ?? tasa.tipo_calculo
     let valorRaw = tasa.valor_snapshot
@@ -42,7 +81,7 @@ export function calcularCuotaFija(principal, tasaQuincenal, cuotas) {
     return redondear2(principal * (r * factor) / (factor - 1))
 }
 
-export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAsignadas, fechaPrimerPago, metodoAmortizacion = 'lineal', diferirCargos = true }) {
+export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAsignadas, fechaPrimerPago, metodoAmortizacion = 'frances', diferirCargos = true }) {
     const tasasPeriodicas = tasasAsignadas.filter(t => t.activa && !t.es_cargo_unico && !t.es_tasa_mora)
     const tasasUnicas = tasasAsignadas.filter(t => t.activa && t.es_cargo_unico)
 
@@ -73,9 +112,11 @@ export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAs
 
     const fPago = fechaPrimerPago ? new Date(fechaPrimerPago) : new Date()
 
+    let fechaCuota = new Date(fPago)
     for (let i = 1; i <= nCuotas; i++) {
-        const fechaCuota = new Date(fPago)
-        fechaCuota.setDate(fechaCuota.getDate() + (i - 1) * 15)
+        if (i > 1) {
+            fechaCuota = obtenerSiguienteQuincena(fechaCuota, fPago)
+        }
 
 
         let interesesEstaCuota = 0

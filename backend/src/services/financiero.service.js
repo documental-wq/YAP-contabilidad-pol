@@ -9,19 +9,41 @@ export const redondear2 = (n) => new Decimal(n).toDecimalPlaces(2).toNumber()
 export const redondear4 = (n) => new Decimal(n).toDecimalPlaces(4).toNumber()
 export const redondear6 = (n) => new Decimal(n).toDecimalPlaces(6).toNumber()
 
-export function obtenerSiguienteQuincena(fecha) {
+export function obtenerSiguienteQuincena(fecha, fechaPrimerPago) {
     const nuevaFecha = new Date(fecha.getTime())
-    const dia = nuevaFecha.getDate()
+    const refFecha = fechaPrimerPago ? new Date(fechaPrimerPago) : new Date(fecha.getTime())
+    const diaInicio = refFecha.getDate()
+    const diaActual = nuevaFecha.getDate()
     
-    if (dia <= 15) {
-        // Ir al último día del mismo mes.
-        nuevaFecha.setDate(1)
-        nuevaFecha.setMonth(nuevaFecha.getMonth() + 1)
-        nuevaFecha.setDate(0)
+    // Si el día de inicio es el 15 o representa el fin de mes (28 o más)
+    if (diaInicio === 15 || diaInicio >= 28) {
+        if (diaActual === 15) {
+            // Ir al último día del mismo mes.
+            nuevaFecha.setDate(1)
+            nuevaFecha.setMonth(nuevaFecha.getMonth() + 1)
+            nuevaFecha.setDate(0)
+        } else {
+            // Ir al día 15 del siguiente mes.
+            nuevaFecha.setDate(15)
+            nuevaFecha.setMonth(nuevaFecha.getMonth() + 1)
+        }
+    } else if (diaInicio < 15) {
+        const segundoDia = diaInicio + 15
+        if (diaActual === diaInicio) {
+            nuevaFecha.setDate(segundoDia)
+        } else {
+            nuevaFecha.setDate(diaInicio)
+            nuevaFecha.setMonth(nuevaFecha.getMonth() + 1)
+        }
     } else {
-        // Ir al día 15 del siguiente mes.
-        nuevaFecha.setDate(15)
-        nuevaFecha.setMonth(nuevaFecha.getMonth() + 1)
+        // diaInicio > 15 pero menor que 28. Ejemplo: 25.
+        const primerDia = diaInicio - 15
+        if (diaActual === diaInicio) {
+            nuevaFecha.setDate(primerDia)
+            nuevaFecha.setMonth(nuevaFecha.getMonth() + 1)
+        } else {
+            nuevaFecha.setDate(diaInicio)
+        }
     }
     return nuevaFecha
 }
@@ -109,7 +131,7 @@ export function calcularPrestamo({ montoOtorgado, numeroCuotas, tasasAsignadas, 
     let fechaCuota = new Date(fechaPrimerPago)
     for (let i = 1; i <= nCuotas; i++) {
         if (i > 1) {
-            fechaCuota = obtenerSiguienteQuincena(fechaCuota)
+            fechaCuota = obtenerSiguienteQuincena(fechaCuota, fechaPrimerPago)
         }
 
         // Si usamos Cuota Fija, el capital es: cuotaFijaBase - interesPuro
