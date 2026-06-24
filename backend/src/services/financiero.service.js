@@ -101,9 +101,22 @@ export function calcularCuotaFija(principal, tasaQuincenal, cuotas) {
 }
 
 export function calcularPrestamo({ montoOtorgado, numeroCuotas, tasasAsignadas, fechaPrimerPago, metodoAmortizacion = 'frances', diferirCargos = false }) {
+    const filterActiva = (t) => {
+        if (!t.activa) return false
+        if (t.es_interes_principal) return true
+        const tipo = t.tipo_calculo_snapshot ?? t.tipo_calculo
+        let valorRaw = t.valor_snapshot
+        if (valorRaw === undefined || valorRaw === null || String(valorRaw).trim() === '') {
+            valorRaw = (tipo === 'monto_fijo') ? (t.valor_fijo ?? 0) : (t.valor_porcentaje ?? 0)
+        }
+        const parsed = parseFloat(String(valorRaw).replace(',', '.'))
+        const val = isNaN(parsed) ? 0 : parsed
+        return val > 0
+    }
+
     // Separar tasas por tipo
-    const tasasPeriodicas = tasasAsignadas.filter(t => t.activa && !t.es_cargo_unico && !t.es_tasa_mora)
-    const tasasUnicas = tasasAsignadas.filter(t => t.activa && t.es_cargo_unico)
+    const tasasPeriodicas = tasasAsignadas.filter(t => filterActiva(t) && !t.es_cargo_unico && !t.es_tasa_mora)
+    const tasasUnicas = tasasAsignadas.filter(t => filterActiva(t) && t.es_cargo_unico)
 
     const mOtorgadoStr = String(montoOtorgado ?? 0).replace(',', '.')
     const mOtorgado = new Decimal(parseFloat(mOtorgadoStr))
@@ -119,14 +132,85 @@ export function calcularPrestamo({ montoOtorgado, numeroCuotas, tasasAsignadas, 
                name.includes('rate');
     }) || tasasPeriodicas.find(t => (t.tipo_calculo_snapshot ?? t.tipo_calculo) !== 'monto_fijo');
 
-    const tQuincenalInteres = tasaInteresPura ? obtenerTasaQuincenal(tasaInteresPura) : 0
+    // Sumamos todas las tasas periódicas que aplican sobre saldo_pendiente
+    let tasaInteresTotal = new Decimal(0)
+    for (const tasa of tasasPeriodicas) {
+        const esPrincipal = tasaInteresPura && (tasa.id === tasaInteresPura.id || tasa.nombre === tasaInteresPura.nombre)
+        const aplicaSobreSaldo = (tasa.aplica_sobre_snapshot ?? tasa.aplica_sobre) === 'saldo_pendiente'
+        if (esPrincipal || aplicaSobreSaldo) {
+            const tasaQ = obtenerTasaQuincenal(tasa)
+            if (tasaQ) {
+                tasaInteresTotal = tasaInteresTotal.plus(new Decimal(tasaQ))
+            }
+        }
+    }
 
-    const usaCuotaFija = metodoAmortizacion === 'frances' && tQuincenalInteres > 0
-    const cuotaFijaBase = usaCuotaFija ? new Decimal(calcularCuotaFija(mOtorgado.toNumber(), tQuincenalInteres, nCuotas)) : new Decimal(0)
+    const usaCuotaFija = metodoAmortizacion === 'frances' && tasaInteresTotal.greaterThan(0)
+    
+    // Si usa cuota fija, calculamos el valor de cuota total constante (redondeado a entero)
+    let cuotaTotalConstante = 0
+    if (usaCuotaFija) {
+        // 1. PMT base para capital + intereses/seguros sobre saldo pendiente
+        const pmtBase = calcularCuotaFija(mOtorgado.toNumber(), tasaInteresTotal.toNumber(), nCuotas)
+        
+        // 2. Sumamos cargos periódicos flats
+        let cargosPeriodicosFlats = new Decimal(0)
+        for (const tasa of tasasPeriodicas) {
+            const esPrincipal = tasaInteresPura && (tasa.id === tasaInteresPura.id || tasa.nombre === tasaInteresPura.nombre)
+            const aplicaSobreSaldo = (tasa.aplica_sobre_snapshot ?? tasa.aplica_sobre) === 'saldo_pendiente'
+            if (!esPrincipal && !aplicaSobreSaldo) {
+                const tipoCalc = tasa.tipo_calculo_snapshot ?? tasa.tipo_calculo
+                if (tipoCalc === 'monto_fijo') {
+                    const vFijoStr = String(tasa.valor_snapshot ?? tasa.valor_fijo ?? 0)
+                    cargosPeriodicosFlats = cargosPeriodicosFlats.plus(new Decimal(parseFloat(vFijoStr.replace(',', '.'))))
+                } else {
+                    const tasaQ = obtenerTasaQuincenal(tasa)
+                    cargosPeriodicosFlats = cargosPeriodicosFlats.plus(mOtorgado.times(new Decimal(tasaQ).dividedBy(100)))
+                }
+            }
+        }
 
-    const capitalConstante = mOtorgado.dividedBy(nCuotas)
+        // 3. Sumamos cargos únicos diferidos
+        let cargosUnicosDiferidos = new Decimal(0)
+        if (diferirCargos) {
+            let totalCargosUnicos = new Decimal(0)
+            for (const cargo of tasasUnicas) {
+                const tipoCalc = cargo.tipo_calculo_snapshot ?? cargo.tipo_calculo
+                let valorRaw = cargo.valor_snapshot
+                if (valorRaw === undefined || valorRaw === null || String(valorRaw).trim() === '') {
+                    valorRaw = (tipoCalc === 'monto_fijo') ? (cargo.valor_fijo ?? 0) : (cargo.valor_porcentaje ?? 0)
+                }
+                const v = new Decimal(parseFloat(String(valorRaw).replace(',', '.')))
+                if (tipoCalc === 'monto_fijo') {
+                    totalCargosUnicos = totalCargosUnicos.plus(v)
+                } else {
+                    totalCargosUnicos = totalCargosUnicos.plus(mOtorgado.times(v.dividedBy(100)))
+                }
+            }
+            cargosUnicosDiferidos = totalCargosUnicos.dividedBy(nCuotas)
+        }
+
+        const cuotaTotalProyectada = new Decimal(pmtBase).plus(cargosPeriodicosFlats).plus(cargosUnicosDiferidos)
+        cuotaTotalConstante = Math.round(cuotaTotalProyectada.toNumber())
+    }
+
     let saldoInicial = new Decimal(mOtorgado)
     const tablaCuotas = []
+    let totalCargosUnicosCalculados = new Decimal(0)
+
+    for (const cargo of tasasUnicas) {
+        const tipoCalc = cargo.tipo_calculo_snapshot ?? cargo.tipo_calculo
+        let valorRaw = cargo.valor_snapshot
+        if (valorRaw === undefined || valorRaw === null || String(valorRaw).trim() === '') {
+            valorRaw = (tipoCalc === 'monto_fijo') ? (cargo.valor_fijo ?? 0) : (cargo.valor_porcentaje ?? 0)
+        }
+        const v = new Decimal(parseFloat(String(valorRaw).replace(',', '.')))
+        if (tipoCalc === 'monto_fijo') {
+            totalCargosUnicosCalculados = totalCargosUnicosCalculados.plus(v)
+        } else {
+            totalCargosUnicosCalculados = totalCargosUnicosCalculados.plus(mOtorgado.times(v.dividedBy(100)))
+        }
+    }
 
     let fechaCuota = new Date(fechaPrimerPago)
     for (let i = 1; i <= nCuotas; i++) {
@@ -134,32 +218,12 @@ export function calcularPrestamo({ montoOtorgado, numeroCuotas, tasasAsignadas, 
             fechaCuota = obtenerSiguienteQuincena(fechaCuota, fechaPrimerPago)
         }
 
-        // Si usamos Cuota Fija, el capital es: cuotaFijaBase - interesPuro
-        let interesPuroParaAmortizar = new Decimal(0)
-        if (usaCuotaFija) {
-            // interesPuro = saldoInicial * (tQuincenalInteres / 100)
-            const tasaDec = new Decimal(tQuincenalInteres).dividedBy(100)
-            // AJUSTE: Redondear interesPuroParaAmortizar al instante
-            interesPuroParaAmortizar = new Decimal(redondear2(saldoInicial.times(tasaDec).toNumber()))
-        }
-
-        // Capital de esta cuota
-        let capitalEstaCuota = new Decimal(0)
-        if (i === nCuotas) {
-            capitalEstaCuota = saldoInicial
-        } else if (usaCuotaFija) {
-            // AJUSTE: cuotaFijaBase y interesPuroParaAmortizar ya tienen 2 decimales, por tanto, capitalEstaCuota también los tendrá.
-            capitalEstaCuota = cuotaFijaBase.minus(interesPuroParaAmortizar)
-        } else {
-            // AJUSTE: Redondear el capital constante a 2 decimales
-            capitalEstaCuota = new Decimal(redondear2(capitalConstante.toNumber()))
-        }
-
         let interesesEstaCuota = new Decimal(0)
         const desglose = []
 
         for (const tasa of tasasPeriodicas) {
-            const aplicacionBase = tasa.aplica_sobre_snapshot ?? tasa.aplica_sobre
+            const esPrincipal = tasaInteresPura && (tasa.id === tasaInteresPura.id || tasa.nombre === tasaInteresPura.nombre)
+            const aplicaSobreSaldo = (tasa.aplica_sobre_snapshot ?? tasa.aplica_sobre) === 'saldo_pendiente'
 
             let base = mOtorgado
             let valor = new Decimal(0)
@@ -171,16 +235,14 @@ export function calcularPrestamo({ montoOtorgado, numeroCuotas, tasasAsignadas, 
             } else {
                 const tasaQ = obtenerTasaQuincenal(tasa)
                 const tasaDec = new Decimal(tasaQ).dividedBy(100)
-                // En amortización francesa, el interés de la tasa principal siempre se calcula sobre el saldo pendiente
-                if (usaCuotaFija && tasaInteresPura && (tasa.id === tasaInteresPura.id || tasa.nombre === tasaInteresPura.nombre)) {
+                if (usaCuotaFija && (esPrincipal || aplicaSobreSaldo)) {
                     base = saldoInicial
                 } else {
-                    base = aplicacionBase === 'saldo_pendiente' ? saldoInicial : mOtorgado
+                    base = aplicaSobreSaldo ? saldoInicial : mOtorgado
                 }
                 valor = base.times(tasaDec)
             }
 
-            // AJUSTE: Redondear el interés individual inmediatamente a 2 decimales
             const valorRedondeado = new Decimal(redondear2(valor.toNumber()))
             interesesEstaCuota = interesesEstaCuota.plus(valorRedondeado)
 
@@ -194,41 +256,33 @@ export function calcularPrestamo({ montoOtorgado, numeroCuotas, tasasAsignadas, 
             })
         }
 
-        // Cargos únicos
         let cargosUnicos = new Decimal(0)
         for (const cargo of tasasUnicas) {
             const tipoCalc = cargo.tipo_calculo_snapshot ?? cargo.tipo_calculo
-            
             let valorRaw = cargo.valor_snapshot
             if (valorRaw === undefined || valorRaw === null || String(valorRaw).trim() === '') {
                 valorRaw = (tipoCalc === 'monto_fijo') ? (cargo.valor_fijo ?? 0) : (cargo.valor_porcentaje ?? 0)
             }
-            
-            const vStr = String(valorRaw).replace(',', '.')
-            const parsed = parseFloat(vStr)
-            const v = new Decimal(isNaN(parsed) ? 0 : parsed)
+            const v = new Decimal(parseFloat(String(valorRaw).replace(',', '.')))
 
             let valorTotalCargo = new Decimal(0)
             if (tipoCalc === 'monto_fijo') {
                 valorTotalCargo = v
             } else {
-                const decV = v.dividedBy(100)
-                valorTotalCargo = mOtorgado.times(decV)
+                valorTotalCargo = mOtorgado.times(v.dividedBy(100))
             }
 
             let valorParaEstaCuota = new Decimal(0)
             if (diferirCargos) {
-                // Si diferimos cargos, se divide equitativamente entre todas las cuotas
                 if (i === nCuotas) {
                     const yaCobrado = new Decimal(redondear2(valorTotalCargo.dividedBy(nCuotas).toNumber())).times(nCuotas - 1)
-                    valorParaEstaCuota = new Decimal(redondear2(valorTotalCargo.minus(yaCobrado).toNumber()))
+                    valorParaEstaCuota = valorTotalCargo.minus(yaCobrado)
                 } else {
                     valorParaEstaCuota = new Decimal(redondear2(valorTotalCargo.dividedBy(nCuotas).toNumber()))
                 }
             } else {
-                // Si no se diferen, se cobran 100% en la primera cuota
                 if (i === 1) {
-                    valorParaEstaCuota = new Decimal(redondear2(valorTotalCargo.toNumber()))
+                    valorParaEstaCuota = valorTotalCargo
                 }
             }
 
@@ -244,13 +298,34 @@ export function calcularPrestamo({ montoOtorgado, numeroCuotas, tasasAsignadas, 
             })
         }
 
-        // AJUSTE: Cuota Total es la suma exacta de los componentes ya redondeados a 2 decimales
-        const cuotaTotal = capitalEstaCuota.plus(interesesEstaCuota).plus(cargosUnicos)
-        
-        // AJUSTE: El saldo final se reduce restando exactamente el capital amortizado redondeado
-        const saldoFinal = saldoInicial.minus(capitalEstaCuota)
+        let cuotaTotal = new Decimal(0)
+        let capitalEstaCuota = new Decimal(0)
 
-        // Asegurarse de que el saldo final no sea un número negativo minúsculo por redondeo
+        if (i === nCuotas) {
+            capitalEstaCuota = saldoInicial
+            if (usaCuotaFija) {
+                // Cuota fija: siempre igual a cuotaTotalConstante.
+                // El ajuste de redondeo se absorbe únicamente en el interés.
+                cuotaTotal = new Decimal(cuotaTotalConstante)
+            } else {
+                const preCuotaTotal = capitalEstaCuota.plus(interesesEstaCuota).plus(cargosUnicos)
+                cuotaTotal = new Decimal(Math.round(preCuotaTotal.toNumber()))
+            }
+            // Ajustamos el interés para absorber la diferencia de redondeo y que la suma sea perfecta
+            interesesEstaCuota = cuotaTotal.minus(capitalEstaCuota).minus(cargosUnicos)
+        } else if (usaCuotaFija) {
+            let cuotaTotalBase = cuotaTotalConstante
+            if (!diferirCargos && i === 1) {
+                cuotaTotalBase += totalCargosUnicosCalculados.toNumber()
+            }
+            cuotaTotal = new Decimal(cuotaTotalBase)
+            capitalEstaCuota = cuotaTotal.minus(interesesEstaCuota).minus(cargosUnicos)
+        } else {
+            capitalEstaCuota = new Decimal(redondear2(mOtorgado.dividedBy(nCuotas).toNumber()))
+            cuotaTotal = capitalEstaCuota.plus(interesesEstaCuota).plus(cargosUnicos)
+        }
+
+        const saldoFinal = saldoInicial.minus(capitalEstaCuota)
         const saldoFinalAjustado = saldoFinal.lessThan(0) && saldoFinal.greaterThan(-0.02) ? new Decimal(0) : saldoFinal
 
         tablaCuotas.push({
@@ -292,16 +367,20 @@ export function calcularPrestamo({ montoOtorgado, numeroCuotas, tasasAsignadas, 
 
     const cuotaPrimera = tablaCuotas[0].cuotaTotal
 
-    let sumSiguientes = new Decimal(0)
-    if (nCuotas > 1) {
-        tablaCuotas.slice(1).forEach(c => {
-            sumSiguientes = sumSiguientes.plus(c.cuotaTotal)
-        })
+    // cuotaEstandar:
+    //   Francés: siempre cuotaTotalConstante (entero fijo, sin decimales por redondeo).
+    //   Lineal:  promedio de cuotas 2..N (cuota "típica" de pagos regulares, excluyendo la primera
+    //            que puede incluir cargos únicos no diferidos).
+    let cuotaEstandar
+    if (usaCuotaFija) {
+        cuotaEstandar = cuotaTotalConstante
+    } else if (nCuotas > 1) {
+        let sumSiguientes = new Decimal(0)
+        tablaCuotas.slice(1).forEach(c => { sumSiguientes = sumSiguientes.plus(c.cuotaTotal) })
+        cuotaEstandar = redondear2(sumSiguientes.dividedBy(nCuotas - 1).toNumber())
+    } else {
+        cuotaEstandar = cuotaPrimera
     }
-
-    const cuotaEstandar = nCuotas > 1
-        ? redondear2(sumSiguientes.dividedBy(nCuotas - 1).toNumber())
-        : cuotaPrimera
 
     const cuotaUltima = tablaCuotas[tablaCuotas.length - 1].cuotaTotal
 

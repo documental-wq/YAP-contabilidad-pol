@@ -82,8 +82,21 @@ export function calcularCuotaFija(principal, tasaQuincenal, cuotas) {
 }
 
 export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAsignadas, fechaPrimerPago, metodoAmortizacion = 'frances', diferirCargos = true }) {
-    const tasasPeriodicas = tasasAsignadas.filter(t => t.activa && !t.es_cargo_unico && !t.es_tasa_mora)
-    const tasasUnicas = tasasAsignadas.filter(t => t.activa && t.es_cargo_unico)
+    const filterActiva = (t) => {
+        if (!t.activa) return false
+        if (t.es_interes_principal) return true
+        const tipo = t.tipo_calculo_snapshot ?? t.tipo_calculo
+        let valorRaw = t.valor_snapshot
+        if (valorRaw === undefined || valorRaw === null || String(valorRaw).trim() === '') {
+            valorRaw = (tipo === 'monto_fijo') ? (t.valor_fijo ?? 0) : (t.valor_porcentaje ?? 0)
+        }
+        const parsed = parseFloat(String(valorRaw).replace(',', '.'))
+        const val = isNaN(parsed) ? 0 : parsed
+        return val > 0
+    }
+
+    const tasasPeriodicas = tasasAsignadas.filter(t => filterActiva(t) && !t.es_cargo_unico && !t.es_tasa_mora)
+    const tasasUnicas = tasasAsignadas.filter(t => filterActiva(t) && t.es_cargo_unico)
 
     const mOtorgadoStr = String(montoOtorgado ?? 0).replace(',', '.')
     const mOtorgado = parseFloat(mOtorgadoStr) || 0
@@ -100,87 +113,153 @@ export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAs
                name.includes('rate');
     }) || tasasPeriodicas.find(t => (t.tipo_calculo_snapshot ?? t.tipo_calculo) !== 'monto_fijo');
 
-    const tQuincenalInteres = tasaInteresPura ? obtenerTasaQuincenal(tasaInteresPura) : 0
+    // Sumamos todas las tasas periódicas que aplican sobre saldo_pendiente
+    let tasaInteresTotal = 0
+    for (const tasa of tasasPeriodicas) {
+        const esPrincipal = tasaInteresPura && (tasa.id === tasaInteresPura.id || tasa.nombre === tasaInteresPura.nombre)
+        const aplicaSobreSaldo = (tasa.aplica_sobre_snapshot ?? tasa.aplica_sobre) === 'saldo_pendiente'
+        if (esPrincipal || aplicaSobreSaldo) {
+            const tasaQ = obtenerTasaQuincenal(tasa)
+            if (tasaQ) {
+                tasaInteresTotal += tasaQ
+            }
+        }
+    }
 
-    // Decidimos el método (por defecto ahora usaremos Cuota Fija si hay una tasa de interés identificable)
-    const usaCuotaFija = metodoAmortizacion === 'frances' && tQuincenalInteres > 0
-    const cuotaFijaBase = usaCuotaFija ? calcularCuotaFija(mOtorgado, tQuincenalInteres, nCuotas) : 0
+    const usaCuotaFija = metodoAmortizacion === 'frances' && tasaInteresTotal > 0
+    
+    // Si usa cuota fija, calculamos el valor de cuota total constante (redondeado a entero)
+    let cuotaTotalConstante = 0
+    if (usaCuotaFija) {
+        // 1. PMT base para capital + intereses/seguros sobre saldo pendiente
+        const pmtBase = calcularCuotaFija(mOtorgado, tasaInteresTotal, nCuotas)
+        
+        // 2. Sumamos cargos periódicos flats
+        let cargosPeriodicosFlats = 0
+        for (const tasa of tasasPeriodicas) {
+            const esPrincipal = tasaInteresPura && (tasa.id === tasaInteresPura.id || tasa.nombre === tasaInteresPura.nombre)
+            const aplicaSobreSaldo = (tasa.aplica_sobre_snapshot ?? tasa.aplica_sobre) === 'saldo_pendiente'
+            if (!esPrincipal && !aplicaSobreSaldo) {
+                const tipoCalc = tasa.tipo_calculo_snapshot ?? tasa.tipo_calculo
+                if (tipoCalc === 'monto_fijo') {
+                    const vFijoStr = String(tasa.valor_snapshot ?? tasa.valor_fijo ?? 0)
+                    cargosPeriodicosFlats += parseFloat(vFijoStr.replace(',', '.'))
+                } else {
+                    const tasaQ = obtenerTasaQuincenal(tasa)
+                    cargosPeriodicosFlats += mOtorgado * (tasaQ / 100)
+                }
+            }
+        }
 
-    const capitalConstante = redondear2(mOtorgado / nCuotas)
+        // 3. Sumamos cargos únicos diferidos
+        let cargosUnicosDiferidos = 0
+        if (diferirCargos) {
+            let totalCargosUnicos = 0
+            for (const cargo of tasasUnicas) {
+                const tipoCalc = cargo.tipo_calculo_snapshot ?? cargo.tipo_calculo
+                let valorRaw = cargo.valor_snapshot
+                if (valorRaw === undefined || valorRaw === null || String(valorRaw).trim() === '') {
+                    valorRaw = (tipoCalc === 'monto_fijo') ? (cargo.valor_fijo ?? 0) : (cargo.valor_porcentaje ?? 0)
+                }
+                const v = parseFloat(String(valorRaw).replace(',', '.')) || 0
+                if (tipoCalc === 'monto_fijo') {
+                    totalCargosUnicos += v
+                } else {
+                    totalCargosUnicos += mOtorgado * (v / 100)
+                }
+            }
+            cargosUnicosDiferidos = totalCargosUnicos / nCuotas
+        }
+
+        const cuotaTotalProyectada = pmtBase + cargosPeriodicosFlats + cargosUnicosDiferidos
+        cuotaTotalConstante = Math.round(cuotaTotalProyectada)
+    }
+
     let saldoInicial = mOtorgado
     const tablaCuotas = []
+    let totalCargosUnicosCalculados = 0
+
+    for (const cargo of tasasUnicas) {
+        const tipoCalc = cargo.tipo_calculo_snapshot ?? cargo.tipo_calculo
+        let valorRaw = cargo.valor_snapshot
+        if (valorRaw === undefined || valorRaw === null || String(valorRaw).trim() === '') {
+            valorRaw = (tipoCalc === 'monto_fijo') ? (cargo.valor_fijo ?? 0) : (cargo.valor_porcentaje ?? 0)
+        }
+        const v = parseFloat(String(valorRaw).replace(',', '.')) || 0
+        if (tipoCalc === 'monto_fijo') {
+            totalCargosUnicosCalculados += v
+        } else {
+            totalCargosUnicosCalculados += mOtorgado * (v / 100)
+        }
+    }
 
     const fPago = fechaPrimerPago ? new Date(fechaPrimerPago) : new Date()
-
     let fechaCuota = new Date(fPago)
+
     for (let i = 1; i <= nCuotas; i++) {
         if (i > 1) {
             fechaCuota = obtenerSiguienteQuincena(fechaCuota, fPago)
         }
 
-
         let interesesEstaCuota = 0
         const desglose = []
 
         for (const tasa of tasasPeriodicas) {
+            const esPrincipal = tasaInteresPura && (tasa.id === tasaInteresPura.id || tasa.nombre === tasaInteresPura.nombre)
+            const aplicaSobreSaldo = (tasa.aplica_sobre_snapshot ?? tasa.aplica_sobre) === 'saldo_pendiente'
+
+            let base = mOtorgado
             let valor = 0
             const tipoCalc = tasa.tipo_calculo_snapshot ?? tasa.tipo_calculo
             if (tipoCalc === 'monto_fijo') {
                 const vFijoStr = String(tasa.valor_snapshot ?? tasa.valor_fijo ?? 0)
-                valor = redondear2(parseFloat(vFijoStr.replace(',', '.')))
+                valor = parseFloat(vFijoStr.replace(',', '.')) || 0
+                base = 0
             } else {
                 const tasaQ = obtenerTasaQuincenal(tasa)
-                valor = redondear2(saldoInicial * (tasaQ / 100))
+                const tasaDec = tasaQ / 100
+                if (usaCuotaFija && (esPrincipal || aplicaSobreSaldo)) {
+                    base = saldoInicial
+                } else {
+                    base = aplicaSobreSaldo ? saldoInicial : mOtorgado
+                }
+                valor = base * tasaDec
             }
 
-            // Si es amortización francesa, el 'interés' ya está incluido en el cálculo de la cuota fija base
-            // pero lo calculamos aquí para el desglose
-            interesesEstaCuota = redondear2(interesesEstaCuota + valor)
+            const valorRedondeado = redondear2(valor)
+            interesesEstaCuota = redondear2(interesesEstaCuota + valorRedondeado)
+
             desglose.push({
                 nombre: tasa.nombre_snapshot ?? tasa.nombre,
                 tipo: tipoCalc,
-                base: saldoInicial,
+                base,
                 tasaQ: obtenerTasaQuincenal(tasa),
-                valor,
+                valor: valorRedondeado,
                 esUnico: false
             })
         }
 
-        // Si usamos Cuota Fija, el capital de esta cuota es: cuotaFijaBase - interesPuro
-        // de lo contrario usamos capital constante
-        let interesPuroParaAmortizar = 0
-        if (usaCuotaFija) {
-            interesPuroParaAmortizar = redondear2(saldoInicial * (tQuincenalInteres / 100))
-        }
-
-        const capitalEstaCuota = (i === nCuotas)
-            ? redondear2(saldoInicial)
-            : (usaCuotaFija ? redondear2(cuotaFijaBase - interesPuroParaAmortizar) : capitalConstante)
-
         let cargosUnicos = 0
         for (const cargo of tasasUnicas) {
             const tipoCalc = cargo.tipo_calculo_snapshot ?? cargo.tipo_calculo
-            
             let valorRaw = cargo.valor_snapshot
             if (valorRaw === undefined || valorRaw === null || String(valorRaw).trim() === '') {
                 valorRaw = (tipoCalc === 'monto_fijo') ? (cargo.valor_fijo ?? 0) : (cargo.valor_porcentaje ?? 0)
             }
-            
-            const vStr = String(valorRaw).replace(',', '.')
-            const v = parseFloat(vStr) || 0
+            const v = parseFloat(String(valorRaw).replace(',', '.')) || 0
 
             let valorTotalCargo = 0
             if (tipoCalc === 'monto_fijo') {
-                valorTotalCargo = redondear2(v)
+                valorTotalCargo = v
             } else {
-                valorTotalCargo = redondear2(mOtorgado * (v / 100))
+                valorTotalCargo = mOtorgado * (v / 100)
             }
 
             let valorParaEstaCuota = 0
             if (diferirCargos) {
                 if (i === nCuotas) {
-                    const yaCobrado = redondear2(redondear2(valorTotalCargo / nCuotas) * (nCuotas - 1))
-                    valorParaEstaCuota = redondear2(valorTotalCargo - yaCobrado)
+                    const yaCobrado = redondear2(valorTotalCargo / nCuotas) * (nCuotas - 1)
+                    valorParaEstaCuota = valorTotalCargo - yaCobrado
                 } else {
                     valorParaEstaCuota = redondear2(valorTotalCargo / nCuotas)
                 }
@@ -190,18 +269,47 @@ export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAs
                 }
             }
 
-            cargosUnicos = redondear2(cargosUnicos + valorParaEstaCuota)
+            const valorRedondeado = redondear2(valorParaEstaCuota)
+            cargosUnicos = redondear2(cargosUnicos + valorRedondeado)
+
             desglose.push({
                 nombre: cargo.nombre_snapshot ?? cargo.nombre,
                 base: mOtorgado,
                 tasaQ: v,
-                valor: valorParaEstaCuota,
+                valor: valorRedondeado,
                 esUnico: true
             })
         }
 
-        const cuotaTotal = redondear2(capitalEstaCuota + interesesEstaCuota + cargosUnicos)
+        let cuotaTotal = 0
+        let capitalEstaCuota = 0
+
+        if (i === nCuotas) {
+            capitalEstaCuota = saldoInicial
+            if (usaCuotaFija) {
+                // Cuota fija: siempre igual a cuotaTotalConstante.
+                // El ajuste de redondeo se absorbe únicamente en el interés.
+                cuotaTotal = cuotaTotalConstante
+            } else {
+                const preCuotaTotal = capitalEstaCuota + interesesEstaCuota + cargosUnicos
+                cuotaTotal = Math.round(preCuotaTotal)
+            }
+            // Ajustamos el interés para absorber la diferencia de redondeo
+            interesesEstaCuota = redondear2(cuotaTotal - capitalEstaCuota - cargosUnicos)
+        } else if (usaCuotaFija) {
+            let cuotaTotalBase = cuotaTotalConstante
+            if (!diferirCargos && i === 1) {
+                cuotaTotalBase += totalCargosUnicosCalculados
+            }
+            cuotaTotal = cuotaTotalBase
+            capitalEstaCuota = redondear2(cuotaTotal - interesesEstaCuota - cargosUnicos)
+        } else {
+            capitalEstaCuota = redondear2(mOtorgado / nCuotas)
+            cuotaTotal = redondear2(capitalEstaCuota + interesesEstaCuota + cargosUnicos)
+        }
+
         const saldoFinal = redondear2(saldoInicial - capitalEstaCuota)
+        const saldoFinalAjustado = saldoFinal < 0 && saldoFinal > -0.02 ? 0 : saldoFinal
 
         tablaCuotas.push({
             numeroCuota: i,
@@ -211,11 +319,11 @@ export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAs
             interesesCobrados: interesesEstaCuota,
             cargosUnicos,
             cuotaTotal,
-            saldoFinal,
+            saldoFinal: redondear2(saldoFinalAjustado),
             desglose
         })
 
-        saldoInicial = saldoFinal
+        saldoInicial = saldoFinalAjustado
     }
 
     const totalPagado = redondear2(tablaCuotas.reduce((s, c) => s + c.cuotaTotal, 0))
@@ -224,10 +332,13 @@ export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAs
     const costoFinanciero = redondear2(totalPagado - mOtorgado)
     const tasaEfectiva = isNaN(costoFinanciero / mOtorgado) ? 0 : redondear4((costoFinanciero / mOtorgado) * 100)
 
+    // cuotaEstandar: en método francés siempre es cuotaTotalConstante (entero exacto por cuota).
+    // No se promedia para evitar decimales por diferencias de redondeo en la última cuota.
+    const cuotaEstandar = usaCuotaFija
+        ? cuotaTotalConstante          // francés: valor fijo real
+        : (tablaCuotas[0]?.cuotaTotal || 0)  // lineal: primera cuota como referencia
+
     const cuotaPrimera = tablaCuotas[0]?.cuotaTotal || 0
-    const cuotaEstandar = tablaCuotas.length > 1
-        ? redondear2(tablaCuotas.slice(1).reduce((s, c) => s + c.cuotaTotal, 0) / (nCuotas - 1))
-        : cuotaPrimera
     const cuotaUltima = tablaCuotas[tablaCuotas.length - 1]?.cuotaTotal || 0
 
     return {
