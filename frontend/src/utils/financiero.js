@@ -332,11 +332,19 @@ export function calcularPrestamoSimulador({ montoOtorgado, numeroCuotas, tasasAs
     const costoFinanciero = redondear2(totalPagado - mOtorgado)
     const tasaEfectiva = isNaN(costoFinanciero / mOtorgado) ? 0 : redondear4((costoFinanciero / mOtorgado) * 100)
 
-    // cuotaEstandar: en método francés siempre es cuotaTotalConstante (entero exacto por cuota).
-    // No se promedia para evitar decimales por diferencias de redondeo en la última cuota.
-    const cuotaEstandar = usaCuotaFija
-        ? cuotaTotalConstante          // francés: valor fijo real
-        : (tablaCuotas[0]?.cuotaTotal || 0)  // lineal: primera cuota como referencia
+    // cuotaEstandar:
+    //   Francés: siempre cuotaTotalConstante (entero fijo, sin decimales por redondeo).
+    //   Lineal:  promedio de cuotas 2..N (cuota "típica" de pagos regulares, excluyendo la primera
+    //            que puede incluir cargos únicos no diferidos).
+    let cuotaEstandar
+    if (usaCuotaFija) {
+        cuotaEstandar = cuotaTotalConstante
+    } else if (nCuotas > 1) {
+        const sumSiguientes = tablaCuotas.slice(1).reduce((sum, c) => sum + c.cuotaTotal, 0)
+        cuotaEstandar = redondear2(sumSiguientes / (nCuotas - 1))
+    } else {
+        cuotaEstandar = cuotaPrimera
+    }
 
     const cuotaPrimera = tablaCuotas[0]?.cuotaTotal || 0
     const cuotaUltima = tablaCuotas[tablaCuotas.length - 1]?.cuotaTotal || 0
